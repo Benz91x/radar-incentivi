@@ -3,8 +3,8 @@
 upload_to_supabase.py — Radar Incentivi
 
 Carica su Supabase i bandi da incentivi.gov.it.
-- In GitHub Actions: legge il file `incentivi_raw.json` scaricato da curl nel workflow
-- In locale: scarica direttamente dall'API
+- Legge il file `incentivi_raw.json` (array diretto o wrapper Solr)
+- In assenza del file scarica direttamente dall'API
 
 Richiede:
     pip install requests supabase
@@ -29,7 +29,7 @@ from supabase import create_client, Client
 # ── CONFIGURAZIONE ──────────────────────────────────────────────────
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
-INPUT_FILE = os.environ.get("INPUT_FILE", "")  # se impostato, legge da file locale
+INPUT_FILE = os.environ.get("INPUT_FILE", "incentivi_raw.json")
 
 ENDPOINT = "https://www.incentivi.gov.it/solr/coredrupal/select"
 FL = (
@@ -38,12 +38,12 @@ FL = (
     "Data_chiusura:zs_field_close_date,Note_di_apertura_chiusura:zs_field_close_date_descriptor,"
     "Dimensioni:zm_field_dimensions_value,Tipologia_Soggetto:zm_field_subject_type_value,"
     "Forma_agevolazione:zm_field_support_form_value,"
-    "Spesa_Ammessa_max:zs_field_cost_max,"
-    "Agevolazione_Concedibile_max:zs_field_support_grant_type_max,"
-    "Settore_Attivita:zm_field_activity_sector_value,"
-    "Regioni:zm_field_regions_value,Soggetto_Concedente:zs_field_subject_grant,"
-    "Base_normativa_primaria:zs_field_primary_ruleset,Base_normativa_secondaria:zs_field_secondary_ruleset,"
-    "Provvedimento_attuativo:zs_field_implementation_ruleset,Gazzetta_ufficiale:zs_field_official_references,"
+    "Spesa_Ammessa_max:zs_field_cost_max,Agevolazione_Concedibile_max:zs_field_support_grant_type_max,"
+    "Settore_Attivita:zm_field_activity_sector_value,Regioni:zm_field_regions_value,"
+    "Soggetto_Concedente:zs_field_subject_grant,Base_normativa_primaria:zs_field_primary_ruleset,"
+    "Base_normativa_secondaria:zs_field_secondary_ruleset,"
+    "Provvedimento_attuativo:zs_field_implementation_ruleset,"
+    "Gazzetta_ufficiale:zs_field_official_references,"
     "Stanziamento_incentivo:zs_field_budget_allocation,Link_istituzionale:zs_field_link,"
     "Data_ultimo_aggiornamento:ds_last_update"
 )
@@ -126,7 +126,8 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
         "spesa_max": as_num(raw.get("Spesa_Ammessa_max") or raw.get("sx")),
         "agev_max": as_num(raw.get("Agevolazione_Concedibile_max") or raw.get("ax")),
         "settori": as_list(raw.get("Settore_Attivita") or raw.get("se")),
-        "regioni": regioni, "concedente": as_str(raw.get("Soggetto_Concedente") or raw.get("sc")).strip(),
+        "regioni": regioni,
+        "concedente": as_str(raw.get("Soggetto_Concedente") or raw.get("sc")).strip(),
         "normativa": normativa.strip(),
         "budget": as_num(raw.get("Stanziamento_incentivo") or raw.get("bu")),
         "link": as_str(raw.get("Link_istituzionale") or raw.get("li")).strip(),
@@ -137,11 +138,23 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
 
 
 def load_docs() -> list[dict]:
-    """Legge i dati: da file locale (se INPUT_FILE è impostato) o scaricando dall'API."""
+    """Legge i dati: da file locale oppure scaricando dall'API."""
     if INPUT_FILE and os.path.exists(INPUT_FILE):
         print(f"Leggo dati da file locale: {INPUT_FILE}")
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+
+        # Supporta sia array diretto [{...}, ...]
+        # che wrapper Solr {"response": {"docs": [...]}}
+        if isinstance(data, list):
+            print("  Formato: array diretto")
+            docs = data
+        elif isinstance(data, dict) and "response" in data:
+            print("  Formato: wrapper Solr")
+            docs = data["response"]["docs"]
+        else:
+            print("ERRORE: struttura JSON non riconosciuta.", file=sys.stderr)
+            sys.exit(1)
     else:
         print("Scarico dati da incentivi.gov.it…")
         time.sleep(2)
@@ -150,8 +163,8 @@ def load_docs() -> list[dict]:
         print(f"  HTTP {r.status_code}")
         r.raise_for_status()
         data = r.json()
+        docs = data["response"]["docs"]
 
-    docs = data["response"]["docs"]
     print(f"  Documenti ricevuti: {len(docs)}")
     return docs
 
