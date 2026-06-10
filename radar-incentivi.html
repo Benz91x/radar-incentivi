@@ -241,16 +241,33 @@ footer{margin:40px 0 24px;color:var(--ink-3);font-size:11.8px;text-align:center;
   </div>
 </div>
 
-<!-- Supabase JS SDK -->
+<!-- Supabase JS SDK — caricato prima di tutto il resto -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
 'use strict';
 
+/* ── GUARD: aspetta che window.supabase sia disponibile prima di inizializzare ── */
+function waitForSupabase(cb, attempts) {
+  attempts = attempts || 0;
+  if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+    cb();
+  } else if (attempts > 50) {
+    document.getElementById('loading-msg').textContent = 'Errore: libreria Supabase non caricata.';
+    document.getElementById('loading-sub').textContent = 'Controlla la connessione e ricarica la pagina.';
+    document.getElementById('sync-dot').className = 'sync-dot err';
+    document.getElementById('sync-label').textContent = 'Errore caricamento SDK Supabase';
+  } else {
+    setTimeout(function(){ waitForSupabase(cb, attempts + 1); }, 100);
+  }
+}
+
+waitForSupabase(function() {
+
 /* ── SUPABASE CONFIG ── */
 const SB_URL = 'https://ncfpbqoforedqwzgsqql.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
-const sb = supabase.createClient(SB_URL, SB_KEY);
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
 const TABLE_INCENTIVI = 'incentivi';
 const TABLE_TEAM      = 'team_state';
 
@@ -280,7 +297,7 @@ const DEFAULT_CFG = {
 };
 
 /* ── STATO ── */
-let DATA = null; // { extractedAt, source, docs[] }
+let DATA = null;
 let CFG  = loadJSON('ri_cfg') || structuredClone(DEFAULT_CFG);
 let TEAM = { excluded:{}, shortlist:{}, notes:{} };
 let UI   = {tab:'dash', cls:'in', stato:'attivi', obiettivo:'', forma:'', dim:'', terr:'', fonte:'', q:'', sort:'score', shown:60};
@@ -318,7 +335,6 @@ async function loadIncentivi(){
   showLoading('Carico i bandi da Supabase…', 'Recupero dati aggiornati dal database condiviso');
   setSyncStatus('loading', 'Carico bandi…');
   try {
-    // Carica in pagine da 1000 per evitare il limite di default
     let all = [];
     let from = 0;
     const PAGE = 1000;
@@ -341,37 +357,39 @@ async function loadIncentivi(){
       return;
     }
 
-    // Converti righe Supabase nel formato interno dell'app
     const now = new Date();
     const docs = all.map(r => ({
       id:         r.id,
       titolo:     r.titolo || '',
       desc:       r.desc_ || '',
-      obiettivi:  r.obiettivi || [],
+      obiettivi:  Array.isArray(r.obiettivi) ? r.obiettivi : [],
       apertura:   r.apertura ? new Date(r.apertura) : null,
       chiusura:   r.chiusura ? new Date(r.chiusura) : null,
       note:       r.note || '',
-      dimensioni: r.dimensioni || [],
-      tipologie:  r.tipologie || [],
-      forme:      r.forme || [],
-      spesaMax:   r.spesa_max,
-      agevMax:    r.agev_max,
-      settori:    r.settori || [],
-      regioni:    r.regioni || [],
+      dimensioni: Array.isArray(r.dimensioni) ? r.dimensioni : [],
+      tipologie:  Array.isArray(r.tipologie) ? r.tipologie : [],
+      forme:      Array.isArray(r.forme) ? r.forme : [],
+      spesaMax:   r.spesa_max ?? null,
+      agevMax:    r.agev_max ?? null,
+      settori:    Array.isArray(r.settori) ? r.settori : [],
+      regioni:    Array.isArray(r.regioni) ? r.regioni : [],
       concedente: r.concedente || '',
       normativa:  r.normativa || '',
-      budget:     r.budget,
+      budget:     r.budget ?? null,
       link:       r.link || '',
       aggiornato: r.aggiornato ? new Date(r.aggiornato) : null,
-      nazionale:  r.nazionale,
-      pnrr:       r.pnrr,
-      ue:         r.ue,
-      // calcolati dopo
+      nazionale:  r.nazionale ?? false,
+      pnrr:       r.pnrr ?? false,
+      ue:         r.ue ?? false,
       score: 0, why: [], stato: 'nd', gg: null, cls: 'out'
     }));
 
-    // Usa la extracted_at più recente come timestamp dataset
-    const extractedAt = all.reduce((mx, r) => r.extracted_at > mx ? r.extracted_at : mx, all[0].extracted_at);
+    // Calcola extracted_at dal campo più recente disponibile
+    const extractedAt = all.reduce((mx, r) => {
+      const ts = r.extracted_at || r.aggiornato || '';
+      return ts > mx ? ts : mx;
+    }, '') || new Date().toISOString();
+
     DATA = { extractedAt, source: 'Supabase (incentivi.gov.it)', docs };
 
     setSyncStatus('ok', `${all.length.toLocaleString('it-IT')} bandi caricati ✓`);
@@ -737,7 +755,6 @@ function renderList(){
   <div class="grid" id="grid">${shown.map(cardHtml).join('')}</div>
   ${list.length>UI.shown?`<div class="morebar"><button class="btn light" id="btn-more">Carica altri (${list.length-UI.shown} rimanenti)</button></div>`:''}`;
 
-  // eventi filtri
   ['stato','obj','forma','dim','terr','fonte','sort'].forEach(k=>{
     const el=document.getElementById('f-'+k);
     if(el) el.onchange=e=>{ UI[k==='obj'?'obiettivo':k==='sort'?'sort':k]=e.target.value; UI.shown=60; render(); };
@@ -836,4 +853,92 @@ function setTab(tab){
 }
 
 /* ── TOAST ── */
-let t
+let toastTimer;
+function toast(msg, ms){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.style.display='none', ms||3000);
+}
+
+/* ── CONFIG UI ── */
+function openCfg(){
+  const sw=document.getElementById('cfg-scopes');
+  sw.innerHTML=Object.entries(DEFAULT_CFG.scopeWeights).map(([k])=>`
+    <label style="display:flex;align-items:center;gap:6px;min-width:200px">
+      <input type="number" step="0.5" min="0" max="5" style="width:60px" data-scope="${esc(k)}" value="${CFG.scopeWeights[k]??0}">
+      ${esc(k)}
+    </label>`).join('');
+  document.getElementById('cfg-kw').value=(CFG.keywords||[]).join('\n');
+  document.getElementById('cfg-thr-in').value=CFG.thrIn;
+  document.getElementById('cfg-thr-val').value=CFG.thrVal;
+  document.getElementById('cfg-bonus-naz').checked=!!CFG.bonusNaz;
+  document.getElementById('cfg-bonus-bud').checked=!!CFG.bonusBudget;
+  document.getElementById('cfg-malus').checked=!!CFG.malus;
+  document.getElementById('m-cfg').classList.add('show');
+}
+function saveCfg(){
+  document.querySelectorAll('[data-scope]').forEach(inp=>{
+    CFG.scopeWeights[inp.dataset.scope]=parseFloat(inp.value)||0;
+  });
+  CFG.keywords=document.getElementById('cfg-kw').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  CFG.thrIn=parseFloat(document.getElementById('cfg-thr-in').value)||4;
+  CFG.thrVal=parseFloat(document.getElementById('cfg-thr-val').value)||2;
+  CFG.bonusNaz=document.getElementById('cfg-bonus-naz').checked;
+  CFG.bonusBudget=document.getElementById('cfg-bonus-bud').checked;
+  CFG.malus=document.getElementById('cfg-malus').checked;
+  saveJSON('ri_cfg',CFG);
+  document.getElementById('m-cfg').classList.remove('show');
+  recompute(); render();
+  toast('Scoring aggiornato e ricalcolato ✓');
+}
+
+/* ── EVENTI ── */
+document.getElementById('btn-refresh').onclick = () => { loadIncentivi().then(()=>loadTeamFromSupabase()); };
+document.getElementById('btn-team').onclick    = () => document.getElementById('m-team').classList.add('show');
+document.getElementById('btn-cfg').onclick     = openCfg;
+document.getElementById('cfg-save').onclick    = saveCfg;
+document.getElementById('cfg-default').onclick = () => { CFG=structuredClone(DEFAULT_CFG); openCfg(); };
+document.getElementById('btn-sync-now').onclick = () => loadTeamFromSupabase();
+document.getElementById('btn-reset-team').onclick = async () => {
+  if(!confirm('Sei sicuro di voler azzerare tutte le valutazioni del team su Supabase?')) return;
+  try{
+    const ids = [...Object.keys(TEAM.excluded), ...Object.keys(TEAM.shortlist), ...Object.keys(TEAM.notes)];
+    const unique=[...new Set(ids)];
+    for(const id of unique){
+      await sb.from(TABLE_TEAM).delete().eq('id_incentivo',id);
+    }
+    TEAM={excluded:{},shortlist:{},notes:{}};
+    recompute(); render();
+    toast('Valutazioni azzerate ✓');
+    document.getElementById('m-team').classList.remove('show');
+  }catch(e){ toast('Errore reset: '+e.message,5000); }
+};
+
+document.querySelectorAll('[data-close]').forEach(b=>{
+  b.onclick=()=>b.closest('.modal-bg').classList.remove('show');
+});
+document.querySelectorAll('.modal-bg').forEach(bg=>{
+  bg.onclick=e=>{ if(e.target===bg) bg.classList.remove('show'); };
+});
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.onclick=()=>setTab(b.dataset.tab);
+});
+
+/* ── INIT ── */
+async function init(){
+  await loadIncentivi();
+  await loadTeamFromSupabase();
+  subscribeRealtime();
+}
+
+init();
+
+}); // fine waitForSupabase
+</script>
+
+<footer>
+  Radar Incentivi · Innovation &amp; Ventures · dati: <a href="https://www.incentivi.gov.it" target="_blank" rel="noopener">incentivi.gov.it</a> via Supabase
+</footer>
+</body>
+</html>
