@@ -14,7 +14,7 @@ jobs:
           python-version: '3.12'
 
       - name: Installa dipendenze
-        run: pip install supabase
+        run: pip install requests supabase
 
       - name: Carica dati su Supabase
         env:
