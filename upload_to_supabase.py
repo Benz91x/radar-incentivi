@@ -2,20 +2,17 @@
 """
 upload_to_supabase.py — Radar Incentivi
 
-Scarica i bandi da incentivi.gov.it e li carica su Supabase (tabella `incentivi`).
-Tutti gli utenti che aprono la GitHub Pages vedranno i dati aggiornati in tempo reale.
+Carica su Supabase i bandi da incentivi.gov.it.
+- In GitHub Actions: legge il file `incentivi_raw.json` scaricato da curl nel workflow
+- In locale: scarica direttamente dall'API
 
 Richiede:
     pip install requests supabase
 
-Uso:
-    python upload_to_supabase.py
-
 Variabili d'ambiente:
     SUPABASE_URL          URL del progetto Supabase
-    SUPABASE_SERVICE_KEY  Service Role Key (NON la anon key — ha i permessi di scrittura)
-
-Fonte dati: incentivi.gov.it Open Data (licenza IODL v2.0)
+    SUPABASE_SERVICE_KEY  Service Role Key
+    INPUT_FILE            (opzionale) percorso file JSON già scaricato
 """
 import json
 import os
@@ -29,11 +26,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
-# ── CONFIGURAZIONE ──────────────────────────────────────────────────────────────
-SUPABASE_URL = os.environ.get(
-    "SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co"
-)
+# ── CONFIGURAZIONE ──────────────────────────────────────────────────
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+INPUT_FILE = os.environ.get("INPUT_FILE", "")  # se impostato, legge da file locale
 
 ENDPOINT = "https://www.incentivi.gov.it/solr/coredrupal/select"
 FL = (
@@ -55,49 +51,30 @@ PARAMS = {"q.op": "OR", "wt": "json", "rows": "8000", "fl": FL, "q": "index_id:i
 CHUNK_SIZE = 200
 SENTINEL = 9.9e10
 TABLE = "incentivi"
-
-# User-Agent da browser reale per non essere bloccati
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "it-IT,it;q=0.9",
     "Referer": "https://www.incentivi.gov.it/",
 }
-# ────────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────
 
 
 def build_session() -> requests.Session:
-    """Crea una sessione con retry automatici (3 tentativi, backoff esponenziale)."""
     session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=2,          # 2s, 4s, 8s
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
+    retry = Retry(total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
+    session.mount("https://", HTTPAdapter(max_retries=retry))
     return session
 
 
 def as_list(v):
-    if isinstance(v, list):
-        return v
-    if v is None or v == "":
-        return []
+    if isinstance(v, list): return v
+    if v is None or v == "": return []
     return [v]
 
-
 def as_str(v):
-    if isinstance(v, list):
-        return str(v[0]) if v else ""
+    if isinstance(v, list): return str(v[0]) if v else ""
     return str(v) if v is not None else ""
-
 
 def as_num(v):
     try:
@@ -106,22 +83,18 @@ def as_num(v):
     except (ValueError, TypeError):
         return None
 
-
 def as_dt(v):
     s = as_str(v)
-    if not s:
-        return None
+    if not s: return None
     try:
-        dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
-        return dt.isoformat()
+        return datetime.datetime.fromisoformat(s.replace("Z", "+00:00")).isoformat()
     except ValueError:
         return None
 
 
 def normalize_row(raw: dict, extracted_at: str) -> dict | None:
     id_ = as_str(raw.get("ID_Incentivo") or raw.get("id"))
-    if not id_:
-        return None
+    if not id_: return None
 
     titolo = as_str(raw.get("Titolo") or raw.get("t")).strip()
     desc = re.sub(r"\s+", " ", as_str(raw.get("Descrizione") or raw.get("d"))).strip()
@@ -142,9 +115,7 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
     ))
 
     return {
-        "id": id_,
-        "titolo": titolo,
-        "desc_": desc,
+        "id": id_, "titolo": titolo, "desc_": desc,
         "obiettivi": as_list(raw.get("Obiettivo_Finalita") or raw.get("ob")),
         "apertura": as_dt(raw.get("Data_apertura") or raw.get("da")),
         "chiusura": as_dt(raw.get("Data_chiusura") or raw.get("dc")),
@@ -155,45 +126,39 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
         "spesa_max": as_num(raw.get("Spesa_Ammessa_max") or raw.get("sx")),
         "agev_max": as_num(raw.get("Agevolazione_Concedibile_max") or raw.get("ax")),
         "settori": as_list(raw.get("Settore_Attivita") or raw.get("se")),
-        "regioni": regioni,
-        "concedente": as_str(raw.get("Soggetto_Concedente") or raw.get("sc")).strip(),
+        "regioni": regioni, "concedente": as_str(raw.get("Soggetto_Concedente") or raw.get("sc")).strip(),
         "normativa": normativa.strip(),
         "budget": as_num(raw.get("Stanziamento_incentivo") or raw.get("bu")),
         "link": as_str(raw.get("Link_istituzionale") or raw.get("li")).strip(),
         "aggiornato": as_dt(raw.get("Data_ultimo_aggiornamento") or raw.get("up")),
-        "nazionale": nazionale,
-        "pnrr": pnrr,
-        "ue": ue,
-        "extracted_at": extracted_at,
-        "source": "incentivi.gov.it",
+        "nazionale": nazionale, "pnrr": pnrr, "ue": ue,
+        "extracted_at": extracted_at, "source": "incentivi.gov.it",
     }
 
 
-def download_docs() -> list[dict]:
-    print("Scarico dati da incentivi.gov.it…")
-    session = build_session()
+def load_docs() -> list[dict]:
+    """Legge i dati: da file locale (se INPUT_FILE è impostato) o scaricando dall'API."""
+    if INPUT_FILE and os.path.exists(INPUT_FILE):
+        print(f"Leggo dati da file locale: {INPUT_FILE}")
+        with open(INPUT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        print("Scarico dati da incentivi.gov.it…")
+        time.sleep(2)
+        session = build_session()
+        r = session.get(ENDPOINT, params=PARAMS, timeout=120, headers=HEADERS)
+        print(f"  HTTP {r.status_code}")
+        r.raise_for_status()
+        data = r.json()
 
-    # Piccola pausa prima della richiesta per sembrare un browser umano
-    time.sleep(2)
-
-    r = session.get(
-        ENDPOINT,
-        params=PARAMS,
-        timeout=120,
-        headers=HEADERS,
-    )
-    print(f"  HTTP {r.status_code}")
-    r.raise_for_status()
-    data = r.json()
     docs = data["response"]["docs"]
-    print(f"  Ricevuti {len(docs)} documenti raw")
+    print(f"  Documenti ricevuti: {len(docs)}")
     return docs
 
 
 def upload(docs: list[dict], sb: Client):
     extracted_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    rows = []
-    seen = set()
+    rows, seen = [], set()
     for raw in docs:
         row = normalize_row(raw, extracted_at)
         if row and row["id"] not in seen:
@@ -201,33 +166,27 @@ def upload(docs: list[dict], sb: Client):
             rows.append(row)
 
     print(f"  Normalizzati {len(rows)} incentivi unici")
-    print(f"  Carico su Supabase (tabella '{TABLE}') in chunk da {CHUNK_SIZE}…")
+    print(f"  Carico su Supabase in chunk da {CHUNK_SIZE}…")
 
     total = 0
     for i in range(0, len(rows), CHUNK_SIZE):
         chunk = rows[i: i + CHUNK_SIZE]
-        resp = sb.table(TABLE).upsert(chunk, on_conflict="id").execute()
+        sb.table(TABLE).upsert(chunk, on_conflict="id").execute()
         total += len(chunk)
-        pct = int(total / len(rows) * 100)
-        print(f"  [{pct:3d}%] {total}/{len(rows)} righe inviate", end="\r")
+        print(f"  [{int(total/len(rows)*100):3d}%] {total}/{len(rows)}", end="\r")
 
     print(f"\n  ✓ Upload completato: {total} incentivi su Supabase")
 
 
 def main() -> int:
     if not SUPABASE_SERVICE_KEY:
-        print(
-            "ERRORE: SUPABASE_SERVICE_KEY non impostata.\n"
-            "  Imposta la variabile d'ambiente SUPABASE_SERVICE_KEY con la service_role key\n"
-            "  (Supabase → Settings → API → service_role).",
-            file=sys.stderr,
-        )
+        print("ERRORE: SUPABASE_SERVICE_KEY non impostata.", file=sys.stderr)
         return 1
 
-    sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    sb = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
     try:
-        docs = download_docs()
+        docs = load_docs()
     except Exception as e:
         print(f"ERRORE download: {e}", file=sys.stderr)
         return 1
