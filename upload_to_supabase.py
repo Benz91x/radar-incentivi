@@ -11,8 +11,8 @@ Richiede:
 Uso:
     python upload_to_supabase.py
 
-Variabili d'ambiente (o modificare le costanti in fondo allo script):
-    SUPABASE_URL        URL del progetto Supabase
+Variabili d'ambiente:
+    SUPABASE_URL          URL del progetto Supabase
     SUPABASE_SERVICE_KEY  Service Role Key (NON la anon key — ha i permessi di scrittura)
 
 Fonte dati: incentivi.gov.it Open Data (licenza IODL v2.0)
@@ -20,22 +20,20 @@ Fonte dati: incentivi.gov.it Open Data (licenza IODL v2.0)
 import json
 import os
 import sys
+import time
 import datetime
 import re
-from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from supabase import create_client, Client
 
 # ── CONFIGURAZIONE ──────────────────────────────────────────────────────────────
 SUPABASE_URL = os.environ.get(
     "SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co"
 )
-# ⚠ Usa la SERVICE ROLE KEY (Settings → API → service_role) — tienila segreta!
-SUPABASE_SERVICE_KEY = os.environ.get(
-    "SUPABASE_SERVICE_KEY",
-    ""  # ← incolla qui la service_role key oppure impostala come variabile d'ambiente
-)
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 ENDPOINT = "https://www.incentivi.gov.it/solr/coredrupal/select"
 FL = (
@@ -54,10 +52,37 @@ FL = (
     "Data_ultimo_aggiornamento:ds_last_update"
 )
 PARAMS = {"q.op": "OR", "wt": "json", "rows": "8000", "fl": FL, "q": "index_id:incentivi"}
-CHUNK_SIZE = 200  # righe per batch upsert
+CHUNK_SIZE = 200
 SENTINEL = 9.9e10
 TABLE = "incentivi"
+
+# User-Agent da browser reale per non essere bloccati
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+    "Referer": "https://www.incentivi.gov.it/",
+}
 # ────────────────────────────────────────────────────────────────────────────────
+
+
+def build_session() -> requests.Session:
+    """Crea una sessione con retry automatici (3 tentativi, backoff esponenziale)."""
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=2,          # 2s, 4s, 8s
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 def as_list(v):
@@ -146,12 +171,18 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
 
 def download_docs() -> list[dict]:
     print("Scarico dati da incentivi.gov.it…")
-    r = requests.get(
+    session = build_session()
+
+    # Piccola pausa prima della richiesta per sembrare un browser umano
+    time.sleep(2)
+
+    r = session.get(
         ENDPOINT,
         params=PARAMS,
         timeout=120,
-        headers={"User-Agent": "Mozilla/5.0 (RadarIncentivi-upload; uso interno)"},
+        headers=HEADERS,
     )
+    print(f"  HTTP {r.status_code}")
     r.raise_for_status()
     data = r.json()
     docs = data["response"]["docs"]
@@ -174,9 +205,8 @@ def upload(docs: list[dict], sb: Client):
 
     total = 0
     for i in range(0, len(rows), CHUNK_SIZE):
-        chunk = rows[i : i + CHUNK_SIZE]
+        chunk = rows[i: i + CHUNK_SIZE]
         resp = sb.table(TABLE).upsert(chunk, on_conflict="id").execute()
-        # supabase-py v2: resp.data è la lista inserita, nessun campo .error separato
         total += len(chunk)
         pct = int(total / len(rows) * 100)
         print(f"  [{pct:3d}%] {total}/{len(rows)} righe inviate", end="\r")
@@ -189,8 +219,7 @@ def main() -> int:
         print(
             "ERRORE: SUPABASE_SERVICE_KEY non impostata.\n"
             "  Imposta la variabile d'ambiente SUPABASE_SERVICE_KEY con la service_role key\n"
-            "  (Supabase → Settings → API → service_role).\n"
-            "  In alternativa modifica la costante SUPABASE_SERVICE_KEY in questo file.",
+            "  (Supabase → Settings → API → service_role).",
             file=sys.stderr,
         )
         return 1
