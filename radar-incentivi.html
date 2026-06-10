@@ -38,6 +38,14 @@ nav.tabs button:hover{color:#fff}
 nav.tabs button.on{color:#fff;border-bottom-color:var(--green);font-weight:600}
 nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11px;margin-left:6px;color:#ccc}
 
+/* SYNC STATUS */
+.sync-bar{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#aaa;padding:4px 0 0}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0;transition:.3s}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.err{background:var(--red)}
+.sync-dot.loading{background:var(--amber);animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
 /* EMPTY STATE */
 .empty{max-width:680px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:38px;box-shadow:var(--shadow);text-align:center}
 .empty h2{margin-bottom:8px}
@@ -160,6 +168,12 @@ footer{margin:40px 0 24px;color:var(--ink-3);font-size:11.8px;text-align:center;
       <button class="btn" id="btn-team">👥 Stato team</button>
       <button class="btn" id="btn-cfg">⚙ Scoring</button>
     </div>
+    <div class="wrap" style="padding:0">
+      <div class="sync-bar">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-label">Connessione a Supabase…</span>
+      </div>
+    </div>
     <nav class="tabs" id="tabs">
       <button data-tab="dash" class="on">Dashboard</button>
       <button data-tab="bandi">Bandi <span class="cnt" id="cnt-bandi">0</span></button>
@@ -197,14 +211,16 @@ footer{margin:40px 0 24px;color:var(--ink-3);font-size:11.8px;text-align:center;
   <div class="modal">
     <button class="x" data-close>✕</button>
     <h3>Stato team (esclusioni, shortlist, note)</h3>
-    <p class="hint">Le valutazioni manuali sono salvate in questo browser. Per condividerle col team: esporta il file e fallo importare ai colleghi (unione non distruttiva).</p>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn light" id="btn-exp-team">⬇ Esporta stato team (.json)</button>
-      <button class="btn light" id="btn-imp-team">⬆ Importa stato team</button>
-      <input type="file" id="team-inp" accept=".json" hidden>
+    <p class="hint">Le valutazioni del team sono salvate su <b>Supabase</b> e condivise in tempo reale con tutti gli utenti che aprono questa pagina. Non serve esportare/importare file.</p>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn light" id="btn-sync-now">🔄 Sincronizza ora</button>
       <span style="flex:1"></span>
       <button class="btn light danger" id="btn-reset-team" style="color:var(--red);border-color:#f3c4c0">Azzera valutazioni</button>
     </div>
+    <p style="margin-top:14px;font-size:12px;color:var(--ink-3)">
+      Ultima sincronizzazione: <span id="last-sync-label">mai</span><br>
+      Stato connessione: <span id="conn-status-label">—</span>
+    </p>
   </div>
 </div>
 
@@ -236,20 +252,30 @@ footer{margin:40px 0 24px;color:var(--ink-3);font-size:11.8px;text-align:center;
 
 <!-- sidecar opzionale: se presente accanto al file, carica i dati automaticamente -->
 <script src="incentivi-data.js" onerror="this.remove()"></script>
+
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 <script>
 /* =====================================================================
    Radar Incentivi — Innovation & Ventures (Deloitte Advisory)
    Fonte dati: incentivi.gov.it — Open Data (licenza IODL v2.0)
-   https://www.incentivi.gov.it/it/open-data — dati senza valore legale
+   Stato team sincronizzato su Supabase (condiviso fra tutti gli utenti)
    ===================================================================== */
 'use strict';
+
+/* ---------- SUPABASE CONFIG ---------- */
+const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
+const sb      = supabase.createClient(SB_URL, SB_KEY);
+const TABLE   = 'team_state';
 
 /* ---------- COSTANTI ---------- */
 const PORTAL = 'https://www.incentivi.gov.it';
 const SOLR_FL = 'ID_Incentivo:zs_nid,Titolo:zs_title,Descrizione:zs_body,Obiettivo_Finalita:zm_field_scopes_value,Data_apertura:zs_field_open_date,Data_chiusura:zs_field_close_date,Note_di_apertura_chiusura:zs_field_close_date_descriptor,Dimensioni:zm_field_dimensions_value,Tipologia_Soggetto:zm_field_subject_type_value,Forma_agevolazione:zm_field_support_form_value,Costi_Ammessi:zm_field_granted_costs_value,Spesa_Ammessa_min:zs_field_cost_min,Spesa_Ammessa_max:zs_field_cost_max,Agevolazione_Concedibile_min:zs_field_support_grant_type_min,Agevolazione_Concedibile_max:zs_field_support_grant_type_max,Settore_Attivita:zm_field_activity_sector_value,Codici_ATECO:zs_field_ateco,Regioni:zm_field_regions_value,Comuni:zs_field_comuni,Ambito_territoriale:zm_field_special_territory_value,Soggetto_Concedente:zs_field_subject_grant,Base_normativa_primaria:zs_field_primary_ruleset,Base_normativa_secondaria:zs_field_secondary_ruleset,Provvedimento_attuativo:zs_field_implementation_ruleset,Gazzetta_ufficiale:zs_field_official_references,Stanziamento_incentivo:zs_field_budget_allocation,Link_istituzionale:zs_field_link,Altre_caratteristiche:zs_field_other_characteristic,Data_ultimo_aggiornamento:ds_last_update';
 const SOLR_URL = PORTAL + '/solr/coredrupal/select?' ;
-const SENTINEL = 9.9e10;          // 99999999999 = valore fittizio "non disponibile"
-const SCAD_SOON_GG = 60;          // finestra "in scadenza"
+const SENTINEL = 9.9e10;
+const SCAD_SOON_GG = 60;
 
 const DEFAULT_CFG = {
   scopeWeights: {
@@ -267,20 +293,117 @@ const DEFAULT_CFG = {
   },
   keywords: ['incubazion','accelerazion','acceleratore','business plan','venture','startup','start-up','start up','scale-up','scaleup','spin-off','spinoff','deep tech','deeptech','intelligenza artificiale','ricerca e sviluppo','ricerca industriale','sviluppo sperimentale','r&s','innovativ','innovazione','trasferimento tecnologico','brevett','proprietà industriale','proof of concept','digitale','digitalizzazione','transizione 4.0','industria 4.0','impresa 4.0','transizione 5.0','ecosistemi dell\'innovazione','internazionalizzazione','export'],
   kwWeight: 0.75, kwCap: 3, titleFactor: 2,
-  bonusInnoSubject: 1.5,   // Tipologia "SU/PMI innovativa"
-  bonusResearch: 0.5,      // Università/Enti di ricerca
+  bonusInnoSubject: 1.5,
+  bonusResearch: 0.5,
   bonusNaz: true, bonusBudget: true, malus: true,
   thrIn: 4, thrVal: 2
 };
 
 /* ---------- STATO ---------- */
-let DATA = null;          // {extractedAt, docs:[normalizzati]}
+let DATA = null;
 let CFG  = loadJSON('ri_cfg') || structuredClone(DEFAULT_CFG);
-let TEAM = loadJSON('ri_team') || {excluded:{}, shortlist:{}, notes:{}};   // per ID
+// TEAM ora è solo cache locale — la fonte di verità è Supabase
+let TEAM = { excluded:{}, shortlist:{}, notes:{} };
 let UI   = {tab:'dash', cls:'in', stato:'attivi', obiettivo:'', forma:'', dim:'', terr:'', fonte:'', q:'', sort:'score', shown:60};
+let lastSyncTime = null;
+let syncConnected = false;
 
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function saveJSON(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+/* ---------- SYNC STATUS UI ---------- */
+function setSyncStatus(status, msg){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  const connLbl = document.getElementById('conn-status-label');
+  dot.className = 'sync-dot ' + status;
+  lbl.textContent = msg;
+  if(connLbl) connLbl.textContent = msg;
+  syncConnected = (status === 'ok');
+}
+function updateLastSyncLabel(){
+  lastSyncTime = new Date();
+  const el = document.getElementById('last-sync-label');
+  if(el) el.textContent = lastSyncTime.toLocaleTimeString('it-IT');
+}
+
+/* ---------- SUPABASE: CARICA TUTTI I DATI TEAM ---------- */
+async function loadTeamFromSupabase(){
+  setSyncStatus('loading','Carico dati team…');
+  try{
+    const { data, error } = await sb.from(TABLE).select('*');
+    if(error) throw error;
+    TEAM = { excluded:{}, shortlist:{}, notes:{} };
+    for(const row of (data||[])){
+      const id = row.id_incentivo;
+      if(row.excluded)  TEAM.excluded[id]  = { at: row.updated_at, by: row.updated_by };
+      if(row.shortlist) TEAM.shortlist[id] = { at: row.updated_at, by: row.updated_by };
+      if(row.nota)      TEAM.notes[id]     = row.nota;
+    }
+    setSyncStatus('ok', 'Dati team sincronizzati ✓');
+    updateLastSyncLabel();
+    recompute(); render();
+  }catch(e){
+    setSyncStatus('err', 'Errore connessione Supabase');
+    console.error('Supabase load error:', e);
+  }
+}
+
+/* ---------- SUPABASE: UPSERT SINGOLA RIGA ---------- */
+async function upsertRow(id, fields){
+  setSyncStatus('loading','Salvo…');
+  try{
+    const row = {
+      id_incentivo: id,
+      shortlist:    !!TEAM.shortlist[id],
+      excluded:     !!TEAM.excluded[id],
+      nota:         TEAM.notes[id] || '',
+      updated_at:   new Date().toISOString(),
+      updated_by:   'team',
+      ...fields
+    };
+    const { error } = await sb.from(TABLE).upsert(row, { onConflict: 'id_incentivo' });
+    if(error) throw error;
+    setSyncStatus('ok','Salvato su Supabase ✓');
+    updateLastSyncLabel();
+  }catch(e){
+    setSyncStatus('err','Errore salvataggio');
+    console.error('Supabase upsert error:', e);
+    toast('Errore salvataggio su Supabase: ' + e.message, 5000);
+  }
+}
+
+/* ---------- SUPABASE: REALTIME SUBSCRIPTION ---------- */
+function subscribeRealtime(){
+  sb.channel('team_state_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, payload => {
+      const row = payload.new || payload.old;
+      if(!row) return;
+      const id = row.id_incentivo;
+      if(payload.eventType === 'DELETE'){
+        delete TEAM.excluded[id];
+        delete TEAM.shortlist[id];
+        delete TEAM.notes[id];
+      } else {
+        if(row.excluded)  TEAM.excluded[id]  = { at: row.updated_at, by: row.updated_by };
+        else              delete TEAM.excluded[id];
+        if(row.shortlist) TEAM.shortlist[id] = { at: row.updated_at, by: row.updated_by };
+        else              delete TEAM.shortlist[id];
+        if(row.nota)      TEAM.notes[id]     = row.nota;
+        else              delete TEAM.notes[id];
+      }
+      recomputeOne(id);
+      render();
+      updateLastSyncLabel();
+    })
+    .subscribe(status => {
+      if(status === 'SUBSCRIBED'){
+        setSyncStatus('ok','Realtime attivo — dati live ✓');
+      } else if(status === 'CLOSED' || status === 'CHANNEL_ERROR'){
+        setSyncStatus('err','Realtime disconnesso');
+      }
+    });
+}
 
 /* ---------- INDEXEDDB (cache dataset) ---------- */
 const idb = {
@@ -302,7 +425,6 @@ function num(v){ const n = parseFloat(S(v)); return (isNaN(n) || n<=0 || n>=SENT
 function dt(v){ if(!v) return null; const d = new Date(S(v)); return isNaN(d) ? null : d; }
 
 function normalize(raw){
-  // accetta sia chiavi "alias" dell'export ufficiale sia formato compatto {id,t,d,...}
   const g = (off, slim) => raw[off] !== undefined ? raw[off] : raw[slim];
   const id = S(g('ID_Incentivo','id'));
   if (!id) return null;
@@ -352,12 +474,10 @@ let KW_RX = [];
 
 function scoreDoc(d){
   let score = 0; const why = [];
-  // 1. obiettivi (tassonomia ufficiale del portale)
   for (const ob of d.obiettivi){
     const w = CFG.scopeWeights[ob] || 0;
     if (w > 0){ score += w; why.push(`Obiettivo «${ob}» +${w}`); }
   }
-  // 2. parole chiave
   let kwPts = 0; const hits = [];
   for (const rx of KW_RX){
     let p = 0;
@@ -367,16 +487,13 @@ function scoreDoc(d){
   }
   kwPts = Math.min(kwPts, CFG.kwCap);
   if (kwPts > 0){ score += kwPts; why.push(`Keyword (${hits.slice(0,6).join(', ')}${hits.length>6?'…':''}) +${kwPts.toFixed(2).replace(/\.?0+$/,'')}`); }
-  // 3. beneficiari innovativi
   if (CFG.bonusInnoSubject && d.tipologie.some(t => /innovativ/i.test(t))){ score += CFG.bonusInnoSubject; why.push(`Beneficiari startup/PMI innovative +${CFG.bonusInnoSubject}`); }
   if (CFG.bonusResearch && d.tipologie.some(t => /universit|ricerca/i.test(t))){ score += CFG.bonusResearch; why.push(`Università/enti di ricerca +${CFG.bonusResearch}`); }
-  // 4. bonus opzionali
   if (CFG.bonusNaz && d.nazionale){ score += 0.5; why.push('Misura nazionale +0,5'); }
   if (CFG.bonusBudget && d.budget){
     if (d.budget >= 5e7){ score += 1; why.push('Dotazione ≥ 50 M€ +1'); }
     else if (d.budget >= 1e7){ score += 0.5; why.push('Dotazione ≥ 10 M€ +0,5'); }
   }
-  // 5. malus fuori perimetro
   if (CFG.malus){
     const targetSet = new Set(Object.entries(CFG.scopeWeights).filter(([,w])=>w>0).map(([k])=>k));
     const onlyOff = d.obiettivi.length>0 && !d.obiettivi.some(o => targetSet.has(o)) &&
@@ -542,277 +659,4 @@ function kpiData(){
 function renderDash(){
   const k = kpiData();
   const sportello = k.act.filter(d=>!d.chiusura).length;
-  const topByScore = DATA.docs.filter(d=>(d.stato==='attivo'||d.stato==='futuro') && d.cls!=='excl').sort((a,b)=>b.score-a.score||(b.budget||0)-(a.budget||0)).slice(0,9);
-
-  const aggBy = (docs, getArr, topN=8) => {
-    const m = {};
-    docs.forEach(d => getArr(d).forEach(v => m[v]=(m[v]||0)+1));
-    return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,topN);
-  };
-  const obAgg = aggBy(k.inTAct.concat(k.fut.filter(d=>d.cls==='in')), d=>d.obiettivi);
-  const formaAgg = aggBy(k.inTAct, d=>d.forme, 6);
-  const terrAgg = aggBy(k.inTAct, d => d.nazionale ? ['Nazionale'] : d.regioni, 8);
-
-  const bars = (rows, cssCls='') => {
-    const mx = Math.max(1, ...rows.map(r=>r[1]));
-    return rows.map(([l,v]) => `<div class="bar ${cssCls}"><span class="lab" title="${esc(l)}">${esc(l)}</span><span class="tr"><span class="fl" style="width:${Math.round(v/mx*100)}%"></span></span><span class="n">${fmtInt(v)}</span></div>`).join('') || '<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>';
-  };
-
-  app.innerHTML = `
-  <div class="kpis">
-    <div class="kpi gr" data-go="bandi|attivo|all"><div class="v">${fmtInt(k.act.length)}</div><div class="l">Attivi</div></div>
-    <div class="kpi bl" data-go="bandi|futuro|all"><div class="v">${fmtInt(k.fut.length)}</div><div class="l">In attivazione</div></div>
-    <div class="kpi am" data-go="bandi|scadenza|all"><div class="v">${fmtInt(k.scad.length)}</div><div class="l">In scadenza ≤ ${SCAD_SOON_GG} gg</div></div>
-    <div class="kpi rd" data-go="bandi|chiuso|all"><div class="v">${fmtInt(k.chiusi.length)}</div><div class="l">Chiusi</div></div>
-    <div class="kpi gr" data-go="bandi|attivi|in"><div class="v">${fmtInt(k.inTAct.length + k.fut.filter(d=>d.cls==='in').length)}</div><div class="l">In target I&amp;V</div></div>
-    <div class="kpi tl"><div class="v">${fmtEur(k.budTot)}</div><div class="l">Dotazione attivi in target*</div></div>
-  </div>
-
-  <div class="panels">
-    <div class="panel"><h3>Attivi in target per obiettivo</h3>${bars(obAgg)}</div>
-    <div class="panel"><h3>Attivi in target per territorio</h3>${bars(terrAgg,'b2')}</div>
-    <div class="panel"><h3>Attivi in target per forma di agevolazione</h3>${bars(formaAgg,'b3')}
-      <div style="margin-top:14px;font-size:12px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px">
-        Sportelli senza scadenza: <b>${fmtInt(sportello)}</b> · Misure PNRR attive: <b>${fmtInt(k.act.filter(d=>d.pnrr).length)}</b> · Cofinanziate UE attive: <b>${fmtInt(k.act.filter(d=>d.ue).length)}</b><br>
-        Da valutare: <b>${fmtInt(DATA.docs.filter(d=>d.cls==='val'&&(d.stato==='attivo'||d.stato==='futuro')).length)}</b> · Fuori target: <b>${fmtInt(DATA.docs.filter(d=>d.cls==='out'&&(d.stato==='attivo'||d.stato==='futuro')).length)}</b> · Esclusi manualmente: <b>${fmtInt(Object.keys(TEAM.excluded).length)}</b>
-      </div>
-    </div>
-  </div>
-
-  <h3 style="margin:6px 2px 12px;font-size:16px">Top opportunità per score I&amp;V <span style="font-weight:400;color:var(--ink-3);font-size:12.5px">(attive o in attivazione)</span></h3>
-  <div class="grid">${topByScore.map(cardHTML).join('')}</div>
-  <footer>* somma degli stanziamenti dichiarati (esclusi valori non disponibili). Importi come pubblicati negli open data — verificare sempre la scheda ufficiale.<br>
-  Fonte: <a href="https://www.incentivi.gov.it/it/open-data" target="_blank" rel="noopener">Open data incentivi.gov.it</a> · licenza <a href="https://www.dati.gov.it/iodl/2.0/" target="_blank" rel="noopener">IODL v2.0</a> · strumento interno di supporto, non sostituisce la documentazione ufficiale dei bandi.</footer>`;
-  wireCards();
-  app.querySelectorAll('.kpi[data-go]').forEach(el => el.onclick = () => {
-    const [tab, stato, cls] = el.dataset.go.split('|');
-    UI.tab = tab; UI.stato = stato; UI.cls = cls; UI.shown = 60;
-    document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
-    render();
-  });
-}
-
-function selOpts(getArr){
-  const m = new Set();
-  DATA.docs.forEach(d => getArr(d).forEach(v => m.add(v)));
-  return [...m].sort((a,b)=>a.localeCompare(b,'it'));
-}
-
-function renderList(){
-  const rows = filtered();
-  const isBandi = UI.tab==='bandi';
-  const obs = selOpts(d=>d.obiettivi), forme = selOpts(d=>d.forme), dims = selOpts(d=>d.dimensioni), regs = selOpts(d=>d.regioni);
-  app.innerHTML = `
-  ${isBandi ? `<div class="chipline" style="margin-top:18px">
-    <button class="fchip t-in ${UI.cls==='in'?'on':''}" data-cls="in">✓ In target</button>
-    <button class="fchip t-val ${UI.cls==='val'?'on':''}" data-cls="val">? Da valutare</button>
-    <button class="fchip t-out ${UI.cls==='out'?'on':''}" data-cls="out">✕ Fuori target</button>
-    <button class="fchip ${UI.cls==='all'?'on':''}" data-cls="all">Tutti</button>
-  </div>`:''}
-  <div class="toolbar" ${isBandi?'':'style="margin-top:18px"'}>
-    <label>Stato<select id="f-stato">
-      <option value="attivi" ${UI.stato==='attivi'?'selected':''}>Attivi + in attivazione</option>
-      <option value="attivo" ${UI.stato==='attivo'?'selected':''}>Solo attivi</option>
-      <option value="scadenza" ${UI.stato==='scadenza'?'selected':''}>In scadenza ≤ ${SCAD_SOON_GG} gg</option>
-      <option value="futuro" ${UI.stato==='futuro'?'selected':''}>In attivazione</option>
-      <option value="chiuso" ${UI.stato==='chiuso'?'selected':''}>Chiusi</option>
-      <option value="tutti" ${UI.stato==='tutti'?'selected':''}>Tutti</option>
-    </select></label>
-    <label>Obiettivo<select id="f-ob"><option value="">Tutti</option>${obs.map(o=>`<option ${UI.obiettivo===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>
-    <label>Forma<select id="f-forma"><option value="">Tutte</option>${forme.map(o=>`<option ${UI.forma===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>
-    <label>Dimensione<select id="f-dim"><option value="">Tutte</option>${dims.map(o=>`<option ${UI.dim===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>
-    <label>Territorio<select id="f-terr"><option value="">Tutti</option><option value="naz" ${UI.terr==='naz'?'selected':''}>Nazionale</option>${regs.map(o=>`<option ${UI.terr===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>
-    <label>Fonte<select id="f-fonte"><option value="">Tutte</option><option value="pnrr" ${UI.fonte==='pnrr'?'selected':''}>PNRR</option><option value="ue" ${UI.fonte==='ue'?'selected':''}>Cofinanziata UE</option><option value="naz" ${UI.fonte==='naz'?'selected':''}>Solo nazionale</option></select></label>
-    <label>Ordina per<select id="f-sort">
-      <option value="score" ${UI.sort==='score'?'selected':''}>Score I&amp;V</option>
-      <option value="scadenza" ${UI.sort==='scadenza'?'selected':''}>Scadenza più vicina</option>
-      <option value="budget" ${UI.sort==='budget'?'selected':''}>Dotazione</option>
-      <option value="apertura" ${UI.sort==='apertura'?'selected':''}>Apertura più recente</option>
-    </select></label>
-    <input type="search" id="f-q" placeholder="Cerca per titolo, descrizione, ente…" value="${esc(UI.q)}">
-  </div>
-  <div class="count-info">${fmtInt(rows.length)} bandi trovati · dotazione complessiva dichiarata: <b>${fmtEur(rows.reduce((s,d)=>s+(d.budget||0),0))}</b></div>
-  <div class="grid">${rows.slice(0,UI.shown).map(cardHTML).join('') || '<p style="color:var(--ink-3);padding:30px 4px">Nessun bando corrisponde ai filtri.</p>'}</div>
-  ${rows.length > UI.shown ? `<div class="morebar"><button class="btn light" id="btn-more">Mostra altri ${fmtInt(Math.min(60, rows.length-UI.shown))} (${fmtInt(rows.length-UI.shown)} rimanenti)</button></div>`:''}
-  <footer>Fonte: <a href="https://www.incentivi.gov.it/it/open-data" target="_blank" rel="noopener">Open data incentivi.gov.it</a> · licenza <a href="https://www.dati.gov.it/iodl/2.0/" target="_blank" rel="noopener">IODL v2.0</a> · importi come pubblicati negli open data, senza valore legale.</footer>`;
-
-  const re = () => { UI.shown = 60; renderList(); };
-  document.getElementById('f-stato').onchange = e => { UI.stato = e.target.value; re(); };
-  document.getElementById('f-ob').onchange = e => { UI.obiettivo = e.target.value; re(); };
-  document.getElementById('f-forma').onchange = e => { UI.forma = e.target.value; re(); };
-  document.getElementById('f-dim').onchange = e => { UI.dim = e.target.value; re(); };
-  document.getElementById('f-terr').onchange = e => { UI.terr = e.target.value; re(); };
-  document.getElementById('f-fonte').onchange = e => { UI.fonte = e.target.value; re(); };
-  document.getElementById('f-sort').onchange = e => { UI.sort = e.target.value; re(); };
-  let deb; document.getElementById('f-q').oninput = e => { clearTimeout(deb); deb = setTimeout(()=>{ UI.q = e.target.value; re(); }, 250); };
-  app.querySelectorAll('[data-cls]').forEach(b => b.onclick = () => { UI.cls = b.dataset.cls; re(); });
-  const more = document.getElementById('btn-more'); if (more) more.onclick = () => { UI.shown += 60; renderList(); };
-  wireCards();
-}
-
-function cardHTML(d){
-  const stBadge = d.stato==='attivo'
-    ? (d.gg!=null && d.gg<=SCAD_SOON_GG ? `<span class="badge b-scad">Scade tra ${d.gg} gg</span>` : '<span class="badge b-attivo">Attivo</span>')
-    : d.stato==='futuro' ? `<span class="badge b-fut">Apre il ${fmtDate(d.apertura)}</span>`
-    : d.stato==='chiuso' ? '<span class="badge b-chiuso">Chiuso</span>' : '<span class="badge b-chiuso">Date n.d.</span>';
-  const fonte = d.pnrr ? '<span class="badge b-pnrr">PNRR</span>' : d.ue ? '<span class="badge b-ue">UE</span>' : '';
-  const naz = d.nazionale ? '<span class="badge b-naz">Nazionale</span>' : '';
-  const sCls = d.cls==='in' ? 's-in' : d.cls==='val' ? 's-val' : 's-out';
-  const why = d.why.length ? d.why.join('\n') : 'Nessun criterio I&V soddisfatto';
-  const terr = d.nazionale ? 'Nazionale' : d.regioni.slice(0,4).join(', ') + (d.regioni.length>4 ? ` +${d.regioni.length-4}` : '');
-  const ben = [...d.dimensioni.slice(0,3), ...(d.dimensioni.length>3?['…']:[])].join(', ');
-  const note = TEAM.notes[d.id] || '';
-  return `<div class="card ${TEAM.excluded[d.id]?'excluded':''}" data-id="${esc(d.id)}">
-    <div class="badges">${stBadge}${fonte}${naz}<span class="score ${sCls}" title="${esc(why)}">★ ${d.score}</span></div>
-    <h4><a href="${PORTAL}/node/${encodeURIComponent(d.id)}" target="_blank" rel="noopener" title="Apri la scheda su incentivi.gov.it">${esc(d.titolo || '(senza titolo)')}</a></h4>
-    <p class="desc">${esc(d.desc || 'Descrizione non disponibile.')}</p>
-    <div class="nums">
-      <div><div class="nv">${fmtEur(d.budget)}</div><div class="nl">Dotazione</div></div>
-      <div><div class="nv">${fmtEur(d.agevMax)}</div><div class="nl">Agevolaz. max</div></div>
-      <div><div class="nv">${fmtEur(d.spesaMax)}</div><div class="nl">Spesa amm. max</div></div>
-    </div>
-    <div class="chips">${d.obiettivi.map(o=>`<span class="chip">${esc(o)}</span>`).join('')}${d.forme.map(f=>`<span class="chip alt">${esc(f)}</span>`).join('')}</div>
-    <div class="meta-rows">
-      <span>🏢 <b>${esc(d.concedente || 'Ente n.d.')}</b></span>
-      <span>📍 ${esc(terr || 'n.d.')} &nbsp;·&nbsp; 👥 ${esc(ben || 'n.d.')}</span>
-      <span>🗓 ${fmtDate(d.apertura)} → ${d.chiusura ? fmtDate(d.chiusura) : (d.note ? 'vedi note' : 'a sportello')}${d.note ? ` <span title="${esc(d.note)}" style="cursor:help">ℹ️</span>`:''}</span>
-      ${note ? `<span class="note-ind">📝 ${esc(note.slice(0,90))}${note.length>90?'…':''}</span>`:''}
-    </div>
-    <div class="cardft">
-      <button class="iconbtn star ${TEAM.shortlist[d.id]?'on':''}" data-act="star" title="Aggiungi/rimuovi dalla shortlist">⭐</button>
-      <button class="iconbtn excl ${TEAM.excluded[d.id]?'on':''}" data-act="excl" title="${TEAM.excluded[d.id]?'Ripristina':'Escludi (fuori target per noi)'}">${TEAM.excluded[d.id]?'↩︎ Ripristina':'🚫 Escludi'}</button>
-      <button class="iconbtn" data-act="note" title="Nota per il team">📝</button>
-      <div class="links">${d.link ? `<a href="${esc(d.link)}" target="_blank" rel="noopener">Sito ente ↗</a>`:''}</div>
-    </div>
-    <textarea class="notebox" data-note placeholder="Nota per il team (es. cliente potenziale, owner, prossimi passi)…">${esc(note)}</textarea>
-  </div>`;
-}
-
-function wireCards(){
-  app.querySelectorAll('.card').forEach(card => {
-    const id = card.dataset.id;
-    card.querySelectorAll('[data-act]').forEach(btn => btn.onclick = () => {
-      const act = btn.dataset.act;
-      if (act==='star'){ TEAM.shortlist[id] ? delete TEAM.shortlist[id] : TEAM.shortlist[id] = {at: Date.now(), by:'me'}; }
-      if (act==='excl'){ TEAM.excluded[id] ? delete TEAM.excluded[id] : TEAM.excluded[id] = {at: Date.now(), by:'me'}; recomputeOne(id); }
-      if (act==='note'){ card.querySelector('[data-note]').classList.toggle('show'); card.querySelector('[data-note]').focus(); return; }
-      saveJSON('ri_team', TEAM); render();
-    });
-    const ta = card.querySelector('[data-note]');
-    ta.onchange = () => { const v = ta.value.trim(); v ? TEAM.notes[id]=v : delete TEAM.notes[id]; saveJSON('ri_team', TEAM); };
-  });
-}
-function recomputeOne(id){ const d = DATA && DATA.docs.find(x=>x.id===id); if (d) d.cls = classify(d); }
-
-/* ---------- DROP / IMPORT WIRING ---------- */
-function readFile(file){
-  if (!file) return;
-  const fr = new FileReader();
-  fr.onload = () => { try{ ingest(JSON.parse(fr.result), 'file: '+file.name); closeModals(); }catch(e){ toast('Errore: '+e.message, 5000); } };
-  fr.readAsText(file, 'utf-8');
-}
-function wireDrop(el){
-  if (!el) return;
-  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('over'); });
-  el.addEventListener('dragleave', () => el.classList.remove('over'));
-  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('over'); readFile(e.dataTransfer.files[0]); });
-}
-document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', e => e.preventDefault());
-
-/* ---------- MODALI ---------- */
-function openModal(id){ document.getElementById(id).classList.add('show'); }
-function closeModals(){ document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('show')); }
-document.querySelectorAll('.modal-bg').forEach(m => {
-  m.addEventListener('click', e => { if (e.target===m) closeModals(); });
-  m.querySelector('[data-close]').onclick = closeModals;
-});
-
-/* ---------- TOAST ---------- */
-let toastT;
-function toast(msg, ms=2600){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.style.display = 'block';
-  clearTimeout(toastT); toastT = setTimeout(()=> t.style.display='none', ms);
-}
-
-/* ---------- CONFIG UI ---------- */
-function openCfg(){
-  const box = document.getElementById('cfg-scopes');
-  box.innerHTML = Object.keys(DEFAULT_CFG.scopeWeights).map(k =>
-    `<label title="${esc(k)}">${esc(k.length>26?k.slice(0,25)+'…':k)} <input type="number" step="0.5" min="0" max="5" style="width:60px" data-scope="${esc(k)}" value="${CFG.scopeWeights[k]||0}"></label>`).join('');
-  document.getElementById('cfg-kw').value = (CFG.keywords||[]).join('\n');
-  document.getElementById('cfg-thr-in').value = CFG.thrIn;
-  document.getElementById('cfg-thr-val').value = CFG.thrVal;
-  document.getElementById('cfg-bonus-naz').checked = !!CFG.bonusNaz;
-  document.getElementById('cfg-bonus-bud').checked = !!CFG.bonusBudget;
-  document.getElementById('cfg-malus').checked = !!CFG.malus;
-  openModal('m-cfg');
-}
-document.getElementById('cfg-save').onclick = () => {
-  document.querySelectorAll('[data-scope]').forEach(inp => CFG.scopeWeights[inp.dataset.scope] = parseFloat(inp.value)||0);
-  CFG.keywords = document.getElementById('cfg-kw').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  CFG.thrIn = parseFloat(document.getElementById('cfg-thr-in').value)||DEFAULT_CFG.thrIn;
-  CFG.thrVal = parseFloat(document.getElementById('cfg-thr-val').value)||DEFAULT_CFG.thrVal;
-  CFG.bonusNaz = document.getElementById('cfg-bonus-naz').checked;
-  CFG.bonusBudget = document.getElementById('cfg-bonus-bud').checked;
-  CFG.malus = document.getElementById('cfg-malus').checked;
-  saveJSON('ri_cfg', CFG); recompute(); render(); closeModals(); toast('Scoring aggiornato ✓');
-};
-document.getElementById('cfg-default').onclick = () => { CFG = structuredClone(DEFAULT_CFG); saveJSON('ri_cfg', CFG); openCfg(); recompute(); render(); };
-
-/* ---------- TEAM STATE ---------- */
-document.getElementById('btn-exp-team').onclick = () => {
-  const blob = new Blob([JSON.stringify({v:1, exportedAt:new Date().toISOString(), team:TEAM, cfg:CFG}, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'radar-incentivi-stato-team-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click(); URL.revokeObjectURL(a.href);
-};
-document.getElementById('btn-imp-team').onclick = () => document.getElementById('team-inp').click();
-document.getElementById('team-inp').onchange = e => {
-  const f = e.target.files[0]; if(!f) return;
-  const fr = new FileReader();
-  fr.onload = () => { try{
-    const j = JSON.parse(fr.result);
-    if (!j.team) throw new Error('file non valido');
-    for (const k of ['excluded','shortlist','notes']) Object.assign(TEAM[k], j.team[k]||{});
-    if (j.cfg && confirm('Importare anche la configurazione scoring del collega?')) { CFG = j.cfg; saveJSON('ri_cfg', CFG); }
-    saveJSON('ri_team', TEAM); recompute(); render(); closeModals(); toast('Stato team unito ✓');
-  }catch(err){ toast('Errore: '+err.message, 4000);} };
-  fr.readAsText(f); e.target.value='';
-};
-document.getElementById('btn-reset-team').onclick = () => {
-  if (confirm('Azzerare tutte le esclusioni, shortlist e note salvate in questo browser?')){
-    TEAM = {excluded:{}, shortlist:{}, notes:{}}; saveJSON('ri_team', TEAM); recompute(); render(); closeModals();
-  }
-};
-
-/* ---------- WIRING GLOBALE ---------- */
-document.getElementById('btn-import').onclick = () => { openModal('m-import'); wireDrop(document.getElementById('drop')); };
-document.getElementById('btn-file').onclick = () => document.getElementById('file-inp').click();
-document.getElementById('file-inp').onchange = e => { readFile(e.target.files[0]); e.target.value=''; };
-document.getElementById('btn-paste').onclick = () => { try{ ingest(JSON.parse(document.getElementById('paste-area').value), 'incolla manuale'); closeModals(); }catch(e){ toast('JSON non valido: '+e.message, 4000); } };
-document.getElementById('btn-live').onclick = tryLive;
-document.getElementById('btn-team').onclick = () => openModal('m-team');
-document.getElementById('btn-cfg').onclick = openCfg;
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
-  UI.tab = b.dataset.tab; UI.shown = 60;
-  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on', x===b));
-  render();
-});
-
-/* ---------- BOOT ---------- */
-(async function boot(){
-  // 1. sidecar opzionale: <script src="incentivi-data.js"> definisce window.INCENTIVI_DATA
-  if (window.INCENTIVI_DATA){ try{ ingest(window.INCENTIVI_DATA, 'file dati allegato (incentivi-data.js)'); return; }catch(e){} }
-  // 2. cache IndexedDB
-  try{
-    const cached = await idb.get('dataset');
-    if (cached && cached.docs && cached.docs.length){ DATA = cached; recompute(); render(); toast('Dati caricati dalla cache locale — usa «Aggiorna» o reimporta per aggiornarli', 3500); return; }
-  }catch(e){}
-  render();
-})();
-</script>
-</body>
-</html>
+  const topByScore = DATA.docs.filter(d=>(d.stato==='attivo'||d.stato==='futuro') && d.cls!=='excl'
