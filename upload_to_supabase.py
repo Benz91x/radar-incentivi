@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""
+upload_to_supabase.py — Radar Incentivi
+
+Scarica i bandi da incentivi.gov.it e li carica su Supabase (tabella `incentivi`).
+Tutti gli utenti che aprono la GitHub Pages vedranno i dati aggiornati in tempo reale.
+
+Richiede:
+    pip install requests supabase
+
+Uso:
+    python upload_to_supabase.py
+
+Variabili d'ambiente (o modificare le costanti in fondo allo script):
+    SUPABASE_URL        URL del progetto Supabase
+    SUPABASE_SERVICE_KEY  Service Role Key (NON la anon key — ha i permessi di scrittura)
+
+Fonte dati: incentivi.gov.it Open Data (licenza IODL v2.0)
+"""
+import json
+import os
+import sys
+import datetime
+import re
+from pathlib import Path
+
+import requests
+from supabase import create_client, Client
+
+# ── CONFIGURAZIONE ──────────────────────────────────────────────────────────────
+SUPABASE_URL = os.environ.get(
+    "SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co"
+)
+# ⚠ Usa la SERVICE ROLE KEY (Settings → API → service_role) — tienila segreta!
+SUPABASE_SERVICE_KEY = os.environ.get(
+    "SUPABASE_SERVICE_KEY",
+    ""  # ← incolla qui la service_role key oppure impostala come variabile d'ambiente
+)
+
+ENDPOINT = "https://www.incentivi.gov.it/solr/coredrupal/select"
+FL = (
+    "ID_Incentivo:zs_nid,Titolo:zs_title,Descrizione:zs_body,"
+    "Obiettivo_Finalita:zm_field_scopes_value,Data_apertura:zs_field_open_date,"
+    "Data_chiusura:zs_field_close_date,Note_di_apertura_chiusura:zs_field_close_date_descriptor,"
+    "Dimensioni:zm_field_dimensions_value,Tipologia_Soggetto:zm_field_subject_type_value,"
+    "Forma_agevolazione:zm_field_support_form_value,"
+    "Spesa_Ammessa_max:zs_field_cost_max,"
+    "Agevolazione_Concedibile_max:zs_field_support_grant_type_max,"
+    "Settore_Attivita:zm_field_activity_sector_value,"
+    "Regioni:zm_field_regions_value,Soggetto_Concedente:zs_field_subject_grant,"
+    "Base_normativa_primaria:zs_field_primary_ruleset,Base_normativa_secondaria:zs_field_secondary_ruleset,"
+    "Provvedimento_attuativo:zs_field_implementation_ruleset,Gazzetta_ufficiale:zs_field_official_references,"
+    "Stanziamento_incentivo:zs_field_budget_allocation,Link_istituzionale:zs_field_link,"
+    "Data_ultimo_aggiornamento:ds_last_update"
+)
+PARAMS = {"q.op": "OR", "wt": "json", "rows": "8000", "fl": FL, "q": "index_id:incentivi"}
+CHUNK_SIZE = 200  # righe per batch upsert
+SENTINEL = 9.9e10
+TABLE = "incentivi"
+# ────────────────────────────────────────────────────────────────────────────────
+
+
+def as_list(v):
+    if isinstance(v, list):
+        return v
+    if v is None or v == "":
+        return []
+    return [v]
+
+
+def as_str(v):
+    if isinstance(v, list):
+        return str(v[0]) if v else ""
+    return str(v) if v is not None else ""
+
+
+def as_num(v):
+    try:
+        n = float(as_str(v))
+        return None if (n <= 0 or n >= SENTINEL) else n
+    except (ValueError, TypeError):
+        return None
+
+
+def as_dt(v):
+    s = as_str(v)
+    if not s:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt.isoformat()
+    except ValueError:
+        return None
+
+
+def normalize_row(raw: dict, extracted_at: str) -> dict | None:
+    id_ = as_str(raw.get("ID_Incentivo") or raw.get("id"))
+    if not id_:
+        return None
+
+    titolo = as_str(raw.get("Titolo") or raw.get("t")).strip()
+    desc = re.sub(r"\s+", " ", as_str(raw.get("Descrizione") or raw.get("d"))).strip()
+    regioni = as_list(raw.get("Regioni") or raw.get("re"))
+    nazionale = len(regioni) == 0 or len(regioni) >= 19
+
+    normativa = " ".join([
+        as_str(raw.get("Base_normativa_primaria") or raw.get("bn")),
+        as_str(raw.get("Base_normativa_secondaria", "")),
+        as_str(raw.get("Provvedimento_attuativo") or raw.get("pa")),
+        as_str(raw.get("Gazzetta_ufficiale") or raw.get("gu")),
+    ])
+    pnrr = bool(re.search(r"PNRR|piano nazionale di ripresa", normativa + titolo, re.I))
+    ue = pnrr or bool(re.search(
+        r"FESR|FSE\+?|FEASR|JTF|Horizon|Next ?Generation|commissione europea|"
+        r"regolamento \(UE\)|decisione C ?\(|POR |PON |PR FESR|programma regionale",
+        normativa + titolo, re.I
+    ))
+
+    return {
+        "id": id_,
+        "titolo": titolo,
+        "desc_": desc,
+        "obiettivi": as_list(raw.get("Obiettivo_Finalita") or raw.get("ob")),
+        "apertura": as_dt(raw.get("Data_apertura") or raw.get("da")),
+        "chiusura": as_dt(raw.get("Data_chiusura") or raw.get("dc")),
+        "note": as_str(raw.get("Note_di_apertura_chiusura") or raw.get("no")).strip(),
+        "dimensioni": as_list(raw.get("Dimensioni") or raw.get("di")),
+        "tipologie": as_list(raw.get("Tipologia_Soggetto") or raw.get("ts")),
+        "forme": as_list(raw.get("Forma_agevolazione") or raw.get("fa")),
+        "spesa_max": as_num(raw.get("Spesa_Ammessa_max") or raw.get("sx")),
+        "agev_max": as_num(raw.get("Agevolazione_Concedibile_max") or raw.get("ax")),
+        "settori": as_list(raw.get("Settore_Attivita") or raw.get("se")),
+        "regioni": regioni,
+        "concedente": as_str(raw.get("Soggetto_Concedente") or raw.get("sc")).strip(),
+        "normativa": normativa.strip(),
+        "budget": as_num(raw.get("Stanziamento_incentivo") or raw.get("bu")),
+        "link": as_str(raw.get("Link_istituzionale") or raw.get("li")).strip(),
+        "aggiornato": as_dt(raw.get("Data_ultimo_aggiornamento") or raw.get("up")),
+        "nazionale": nazionale,
+        "pnrr": pnrr,
+        "ue": ue,
+        "extracted_at": extracted_at,
+        "source": "incentivi.gov.it",
+    }
+
+
+def download_docs() -> list[dict]:
+    print("Scarico dati da incentivi.gov.it…")
+    r = requests.get(
+        ENDPOINT,
+        params=PARAMS,
+        timeout=120,
+        headers={"User-Agent": "Mozilla/5.0 (RadarIncentivi-upload; uso interno)"},
+    )
+    r.raise_for_status()
+    data = r.json()
+    docs = data["response"]["docs"]
+    print(f"  Ricevuti {len(docs)} documenti raw")
+    return docs
+
+
+def upload(docs: list[dict], sb: Client):
+    extracted_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    rows = []
+    seen = set()
+    for raw in docs:
+        row = normalize_row(raw, extracted_at)
+        if row and row["id"] not in seen:
+            seen.add(row["id"])
+            rows.append(row)
+
+    print(f"  Normalizzati {len(rows)} incentivi unici")
+    print(f"  Carico su Supabase (tabella '{TABLE}') in chunk da {CHUNK_SIZE}…")
+
+    total = 0
+    for i in range(0, len(rows), CHUNK_SIZE):
+        chunk = rows[i : i + CHUNK_SIZE]
+        resp = sb.table(TABLE).upsert(chunk, on_conflict="id").execute()
+        # supabase-py v2: resp.data è la lista inserita, nessun campo .error separato
+        total += len(chunk)
+        pct = int(total / len(rows) * 100)
+        print(f"  [{pct:3d}%] {total}/{len(rows)} righe inviate", end="\r")
+
+    print(f"\n  ✓ Upload completato: {total} incentivi su Supabase")
+
+
+def main() -> int:
+    if not SUPABASE_SERVICE_KEY:
+        print(
+            "ERRORE: SUPABASE_SERVICE_KEY non impostata.\n"
+            "  Imposta la variabile d'ambiente SUPABASE_SERVICE_KEY con la service_role key\n"
+            "  (Supabase → Settings → API → service_role).\n"
+            "  In alternativa modifica la costante SUPABASE_SERVICE_KEY in questo file.",
+            file=sys.stderr,
+        )
+        return 1
+
+    sb: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    try:
+        docs = download_docs()
+    except Exception as e:
+        print(f"ERRORE download: {e}", file=sys.stderr)
+        return 1
+
+    if not docs:
+        print("ERRORE: nessun documento ricevuto.", file=sys.stderr)
+        return 1
+
+    try:
+        upload(docs, sb)
+    except Exception as e:
+        print(f"ERRORE upload Supabase: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
