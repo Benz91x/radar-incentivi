@@ -1,4 +1,4 @@
-name: Refresh Incentivi Data
+name: Refresh Incentivi → Supabase
 
 on:
   schedule:
@@ -6,10 +6,8 @@ on:
   workflow_dispatch:        # eseguibile manualmente da Actions
 
 jobs:
-  refresh:
+  upload:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -18,15 +16,9 @@ jobs:
           python-version: '3.12'
 
       - name: Installa dipendenze
-        run: pip install requests
+        run: pip install requests supabase
 
-      - name: Esegui refresh dati
-        run: python refresh_dati.py
-
-      - name: Commit aggiornamento dati
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add incentivi-data.js
-          git diff --cached --quiet || git commit -m "chore: aggiorna incentivi-data.js [auto $(date -u +%Y-%m-%d)]"
-          git push
+      - name: Carica dati su Supabase
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python upload_to_supabase.py
