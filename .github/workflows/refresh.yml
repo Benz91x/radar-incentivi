@@ -2,8 +2,8 @@ name: Refresh Incentivi → Supabase
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # ogni notte alle 03:00 UTC
-  workflow_dispatch:        # eseguibile manualmente da Actions
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
   upload:
@@ -11,14 +11,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Scarica dati da incentivi.gov.it con curl
+        run: |
+          curl -s -L \
+            --max-time 120 \
+            --retry 3 \
+            --retry-delay 5 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
+            -H "Accept: application/json" \
+            -H "Accept-Language: it-IT,it;q=0.9" \
+            -H "Referer: https://www.incentivi.gov.it/" \
+            "https://www.incentivi.gov.it/solr/coredrupal/select?q.op=OR&wt=json&rows=8000&fl=ID_Incentivo%3Azs_nid%2CTitolo%3Azs_title%2CDescrizione%3Azs_body%2CObiettivo_Finalita%3Azm_field_scopes_value%2CData_apertura%3Azs_field_open_date%2CData_chiusura%3Azs_field_close_date%2CNote_di_apertura_chiusura%3Azs_field_close_date_descriptor%2CDimensioni%3Azm_field_dimensions_value%2CTipologia_Soggetto%3Azm_field_subject_type_value%2CForma_agevolazione%3Azm_field_support_form_value%2CSpesa_Ammessa_max%3Azs_field_cost_max%2CAgevolazione_Concedibile_max%3Azs_field_support_grant_type_max%2CSettore_Attivita%3Azm_field_activity_sector_value%2CRegioni%3Azm_field_regions_value%2CSoggetto_Concedente%3Azs_field_subject_grant%2CBase_normativa_primaria%3Azs_field_primary_ruleset%2CBase_normativa_secondaria%3Azs_field_secondary_ruleset%2CProvvedimento_attuativo%3Azs_field_implementation_ruleset%2CGazzetta_ufficiale%3Azs_field_official_references%2CStanziamento_incentivo%3Azs_field_budget_allocation%2CLink_istituzionale%3Azs_field_link%2CData_ultimo_aggiornamento%3Ads_last_update&q=index_id%3Aincentivi" \
+            -o incentivi_raw.json
+          echo "Download completato. Dimensione file:"
+          ls -lh incentivi_raw.json
+          # Verifica che il file contenga dati validi
+          python3 -c "import json,sys; d=json.load(open('incentivi_raw.json')); print(f'Documenti ricevuti: {len(d[\"response\"][\"docs\"])}')"
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Installa dipendenze
-        run: pip install requests supabase
+        run: pip install supabase
 
       - name: Carica dati su Supabase
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          INPUT_FILE: incentivi_raw.json
         run: python upload_to_supabase.py
