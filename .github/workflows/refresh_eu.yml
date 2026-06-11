@@ -1,0 +1,26 @@
+name: Refresh Call EU → Supabase
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installa dipendenze
+        run: pip install requests supabase
+
+      - name: Scarica call aperte da EU Funding & Tenders Portal
+        run: python fetch_eu_calls.py
+
+      - name: Carica call EU su Supabase (tabella incentivi_eu)
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          INPUT_FILE: eu_calls_raw.json
+        run: python upload_eu_to_supabase.py
