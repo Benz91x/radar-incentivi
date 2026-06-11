@@ -393,15 +393,6 @@ let activeTeamTab = 'shortlist';
 
 /* ─────────────────────────────────────────────
    FIX #1 — SCORING AUTOMATICO
-   Algoritmo basato su criteri reali del bando:
-   - budget disponibile
-   - numero settori coperti
-   - stato apertura
-   - presenza forma agevolazione
-   - bonus PNRR
-   Score >= 5 → IN TARGET
-   Score <= 0 → FUORI TARGET
-   Altrimenti → DA VALUTARE
 ───────────────────────────────────────────── */
 function scoreItem(item){
   const ts  = teamState[item.id];
@@ -409,37 +400,29 @@ function scoreItem(item){
   const ch  = item.chiusura ? new Date(item.chiusura) : null;
   const ap  = item.apertura ? new Date(item.apertura) : null;
 
-  // Priorità 1: classificazione manuale dell'utente
   if(ts && ts.shortlist) return 'in';
   if(ts && ts.excluded)  return 'out';
 
-  // Priorità 2: bando scaduto
   if(ch && ch < now) return 'out';
 
-  // Priorità 3: scoring automatico sui dati del bando
   let score = 0;
 
-  // Budget disponibile (agev_max o budget totale)
   const bud = Number(item.agev_max || item.budget || 0);
   if(bud >= 500000)  score += 3;
   else if(bud >= 100000) score += 2;
   else if(bud >= 10000)  score += 1;
   else if(bud > 0 && bud < 5000) score -= 2;
 
-  // Ha settori definiti (bando specifico, non generico)
   const sett = Array.isArray(item.settori) ? item.settori : [];
   if(sett.length >= 3) score += 2;
   else if(sett.length > 0) score += 1;
 
-  // Apertura attiva ora (non futuro, non scaduto)
   const isAperto = (!ap || ap <= now) && (!ch || ch >= now);
   if(isAperto) score += 1;
 
-  // Ha forma agevolazione definita
   const forme = Array.isArray(item.forme) ? item.forme : [];
   if(forme.length > 0) score += 1;
 
-  // Bonus PNRR
   if((item.titolo||'').toUpperCase().includes('PNRR')) score += 1;
 
   if(score >= 5) return 'in';
@@ -465,18 +448,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     teamState = {};
     tsData.forEach(r => { teamState[r.id_incentivo] = r; });
 
-    // Aggiorna contatori tab e source switcher
     document.getElementById('cnt-bandi-tab').textContent = allMimit.length + allEu.length;
     document.getElementById('cnt-all').textContent   = allMimit.length + allEu.length;
     document.getElementById('cnt-mimit').textContent = allMimit.length;
     document.getElementById('cnt-eu').textContent    = allEu.length;
 
-    // FIX #4: popola ENTRAMBI i select dinamici all'avvio (non solo regione)
     populateRegioneSelect();
     populateTipoSelect();
     applyFilters();
 
-    // FIX #2: renderizza la dashboard — è la landing page
     renderDashboard();
 
     setSyncState('ok', `Aggiornato · ${allMimit.length} MIMIT + ${allEu.length} EU`);
@@ -545,7 +525,6 @@ function populateRegioneSelect(){
   sel.value = cur;
 }
 
-/* FIX #4 — populateTipoSelect chiamata anche all'avvio in DOMContentLoaded */
 function populateTipoSelect(){
   const sel = document.getElementById('sel-tipo');
   const cur = sel.value;
@@ -703,7 +682,6 @@ function buildCard(item){
     ? '<span class="badge b-eu-portal">🇪🇺 EU Portal</span>'
     : '<span class="badge b-naz">🇮🇹 MIMIT</span>';
 
-  // FIX #1: score con algoritmo automatico + indicatore visivo se classificazione automatica vs manuale
   let scoreHtml = '';
   if(!isEu){
     const sc  = scoreItem(item);
@@ -858,7 +836,6 @@ function renderDashboard(){
   });
   const shortN  = Object.values(teamState).filter(t=>t.shortlist).length;
 
-  // FIX #1: conta i bandi MIMIT "In target" usando lo scoring automatico
   const inTargetN = allMimit.filter(i => scoreItem(i) === 'in').length;
 
   document.getElementById('kpi-row').innerHTML = `
@@ -870,19 +847,16 @@ function renderDashboard(){
     <div class="kpi rd"><div class="v">${shortN}</div><div class="l">In shortlist</div></div>
   `;
 
-  // Regioni top MIMIT
   const regCount = {};
   allMimit.forEach(i => (Array.isArray(i.regioni)?i.regioni:[]).forEach(r=>{ regCount[r]=(regCount[r]||0)+1; }));
   const topReg = Object.entries(regCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxR   = topReg[0]?.[1]||1;
 
-  // Settori top
   const setCount = {};
   all.forEach(i => (Array.isArray(i.settori)?i.settori:[]).forEach(s=>{ setCount[s]=(setCount[s]||0)+1; }));
   const topSet = Object.entries(setCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxS   = topSet[0]?.[1]||1;
 
-  // Distribuzione stati EU
   const euStati = {};
   allEu.forEach(i => {
     const s = (i.status||'N/D').toLowerCase();
@@ -892,7 +866,6 @@ function renderDashboard(){
   const topEuStati = Object.entries(euStati).sort((a,b)=>b[1]-a[1]);
   const maxES = topEuStati[0]?.[1]||1;
 
-  // Distribuzione stati MIMIT
   const mimitStati = {aperti:0, inAttivazione:0, scaduti:0};
   allMimit.forEach(i => {
     const ap = i.apertura ? new Date(i.apertura) : null;
@@ -902,7 +875,6 @@ function renderDashboard(){
     else mimitStati.aperti++;
   });
 
-  // Score distribution MIMIT (FIX #1: usa algoritmo reale)
   const scoreDist = {in:0, val:0, out:0};
   allMimit.forEach(i => { scoreDist[scoreItem(i)]++; });
   const maxSc = Math.max(...Object.values(scoreDist), 1);
@@ -939,7 +911,6 @@ function renderDashboard(){
   `;
 }
 
-/* Naviga ai bandi filtrando per score chip */
 function goToBandiFiltered(chip){
   showTab('bandi');
   activeChips.clear();
@@ -949,19 +920,10 @@ function goToBandiFiltered(chip){
   applyFilters();
 }
 
-/* ─────────────────────────────────────────────
-   FIX #3 — NAV TABS: usa SOLO classList, MAI inline style
-   Il problema precedente: style.display='block' sul sec-dashboard
-   aveva priorità CSS superiore a .section{display:none}, causando
-   sovrapposizione dei pannelli quando si cambiava tab.
-   Soluzione: toggle esclusivo della classe .on su tutte le sezioni.
-───────────────────────────────────────────── */
 function showTab(t){
-  // Rimuove .on da TUTTE le sezioni, poi lo aggiunge solo a quella attiva
   ['dashboard','bandi','shortlist'].forEach(s => {
     document.getElementById('sec-'+s).classList.toggle('on', s===t);
   });
-  // Aggiorna il tab attivo nella nav
   document.querySelectorAll('nav.tabs button').forEach((b,i)=>{
     b.classList.toggle('on',['dashboard','bandi','shortlist'][i]===t);
   });
