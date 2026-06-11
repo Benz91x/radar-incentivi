@@ -162,31 +162,34 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .card h4 a:hover{color:var(--green-dark);text-decoration:underline}
 .desc{color:var(--ink-2);font-size:12.8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .nums{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.nums div{padding:8px 10px;background:#fafbf8}
-.nums div+div{border-left:1px solid var(--line)}
-.nums .nv{font-weight:700;font-size:14.5px}
-.nums .nl{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px}
-.meta-rows{font-size:12px;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
-.meta-rows b{color:var(--ink)}
-.chips{display:flex;gap:5px;flex-wrap:wrap}
-.chip{background:#eef3e3;color:var(--green-dark);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600}
-.chip.alt{background:#f0f0f0;color:#555}
-.chip.eu{background:#e2f0f7;color:var(--blue)}
-.card-actions{display:flex;gap:7px;margin-top:4px}
-.card-actions button{font-size:11.5px;border-radius:7px;padding:5px 12px;border:1px solid var(--line);background:#fff;color:var(--ink-2);transition:.12s}
-.card-actions button:hover{border-color:var(--green-dark);color:var(--green-dark)}
-.card-actions button.act-in{background:var(--green);border-color:var(--green);color:#000;font-weight:600}
-.card-actions button.act-ex{background:#f8f1f1;border-color:#e0b4b0;color:var(--red)}
-.card-actions a.btn-link{font-size:11.5px;border-radius:7px;padding:5px 12px;border:1px solid var(--line);background:#fff;color:var(--ink-2);text-decoration:none;transition:.12s;display:inline-flex;align-items:center;gap:5px}
-.card-actions a.btn-link:hover{border-color:var(--blue);color:var(--blue)}
+.nums div{padding:8px 10px;text-align:center}
+.nums div:not(:last-child){border-right:1px solid var(--line)}
+.nums .nv{font-size:13.5px;font-weight:700}
+.nums .nl{font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px}
+.meta-rows{display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--ink-2)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{background:#f0f2ec;border-radius:6px;padding:3px 9px;font-size:11.5px;color:var(--ink-2)}
+.chip.alt{background:#e2f0f7;color:#004b8d}
+.result-count{font-size:12.5px;color:var(--ink-3);margin:10px 0 14px;font-weight:600}
 
-/* SHORTLIST / TEAM TABS */
-.team-tabs{display:flex;gap:6px;margin-bottom:14px}
-.team-tab{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 16px;font-size:13px;color:var(--ink-2);transition:.12s}
+/* SHORTLIST */
+.team-tabs{display:flex;gap:8px;margin-bottom:18px}
+.team-tab{border:2px solid var(--line);background:#fff;color:var(--ink-2);border-radius:9px;padding:8px 20px;font-size:13px;font-weight:600;transition:.15s}
+.team-tab:hover{border-color:var(--ink-2)}
 .team-tab.on{background:#000;color:#fff;border-color:#000;font-weight:600}
 
-/* RESULT COUNT */
-.result-count{font-size:12px;color:var(--ink-3);margin-bottom:8px}
+/* CARD ACTIONS */
+.card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+.card-actions button,.card-actions a{
+  border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  border-radius:7px;padding:6px 12px;font-size:12px;text-decoration:none;
+  transition:.12s;display:inline-flex;align-items:center;gap:5px
+}
+.card-actions button:hover,.card-actions a:hover{border-color:var(--ink-2);color:var(--ink)}
+.card-actions .act-in{background:#f0f7e6;border-color:var(--green-dark);color:var(--green-dark);font-weight:600}
+.card-actions .act-ex{background:#fef0f0;border-color:#c0392b;color:#c0392b;font-weight:600}
+.btn-link{border:1px solid var(--line);background:#fff;color:var(--ink-2);border-radius:7px;padding:6px 12px;font-size:12px;text-decoration:none;transition:.12s;display:inline-flex;align-items:center;gap:5px}
+.btn-link:hover{border-color:var(--blue);color:var(--blue)}
 
 /* PAGINATOR */
 .pager{display:flex;align-items:center;gap:6px;margin-top:20px;justify-content:center;flex-wrap:wrap}
@@ -278,10 +281,10 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
         <!-- Stato -->
         <label>Stato
           <select id="sel-stato" onchange="applyFilters()">
-            <option value="">Tutti</option>
-            <option value="aperto">✅ Aperto</option>
-            <option value="scaduto">⏱ Scaduto</option>
-            <option value="futuro">🔜 Futuro</option>
+            <option value="">Tutti gli stati</option>
+            <option value="aperto">✅ Aperto / Attivo</option>
+            <option value="futuro">🔜 In attivazione / Futuro</option>
+            <option value="scaduto">⏱ Scaduto / Chiuso</option>
           </select>
         </label>
 
@@ -353,12 +356,25 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
 
+/* FIX: paginazione automatica — carica TUTTE le righe superando il limite 1000 di Supabase */
 async function sbFetch(table, params=''){
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
-    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Accept':'application/json','Range':'0-9999'}
-  });
-  if(!r.ok) throw new Error(await r.text());
-  return r.json();
+  const PAGE = 1000;
+  let all = [], offset = 0, done = false;
+  while(!done){
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}&limit=${PAGE}&offset=${offset}`, {
+      headers:{
+        'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
+        'Accept':'application/json',
+        'Prefer':'count=exact'
+      }
+    });
+    if(!r.ok) throw new Error(await r.text());
+    const chunk = await r.json();
+    all = all.concat(chunk);
+    if(chunk.length < PAGE) done = true;
+    else offset += PAGE;
+  }
+  return all;
 }
 
 /* ─────────────────────────────────────────────
@@ -438,7 +454,6 @@ function setSource(src){
   chipWrap.style.display = (src === 'eu') ? 'none' : '';
 
   // Aggiorna label filtro Tipo
-  const selTipo = document.getElementById('sel-tipo');
   const tipoLabel = document.querySelector('#filtro-tipo-wrap');
   if(tipoLabel) tipoLabel.childNodes[0].textContent = (src === 'eu') ? 'Programma' : 'Tipo';
 
@@ -479,9 +494,6 @@ function populateTipoSelect(){
   const sel = document.getElementById('sel-tipo');
   const cur = sel.value;
   sel.innerHTML = '<option value="">Tutti</option>';
-  const items = (activeSource === 'eu') ? allEu :
-                (activeSource === 'mimit') ? allMimit :
-                [...allMimit, ...allEu];
 
   if(activeSource === 'eu'){
     // Programma
@@ -529,7 +541,6 @@ function renderChips(){
    FILTRI PRINCIPALI
 ───────────────────────────────────────────── */
 function applyFilters(){
-  // Leggi valori senza toccare il DOM dei filtri
   const q       = (document.getElementById('search-bandi').value || '').toLowerCase().trim();
   const stato   = document.getElementById('sel-stato').value;
   const regione = document.getElementById('sel-regione').value;
@@ -545,17 +556,26 @@ function applyFilters(){
   let filtered = pool.filter(item => {
     // Testo
     if(q){
-      const hay = ((item.titolo||'')+(item.desc_||'')).toLowerCase();
+      const hay = ((item.titolo||'')+(item.desc_||'')+(item.summary||'')+(item.description||'')).toLowerCase();
       if(!hay.includes(q)) return false;
     }
 
-    // Stato
+    // FIX: Stato — gestisce sia MIMIT (date) che EU (campo status)
     if(stato){
       const ap = item.apertura ? new Date(item.apertura) : null;
       const ch = item.chiusura ? new Date(item.chiusura) : null;
-      if(stato==='aperto'  && !((!ap||ap<=now) && (!ch||ch>=now))) return false;
-      if(stato==='scaduto' && !(ch && ch < now)) return false;
-      if(stato==='futuro'  && !(ap && ap > now)) return false;
+      const euStatus = (item.status||'').toLowerCase().trim();
+      if(item._src === 'eu'){
+        // EU usa il campo status: open, forthcoming, closed
+        if(stato==='aperto'  && !(euStatus==='open'  || euStatus==='aperto')) return false;
+        if(stato==='futuro'  && !(euStatus==='forthcoming' || euStatus==='futuro' || euStatus==='in attivazione')) return false;
+        if(stato==='scaduto' && !(euStatus==='closed'|| euStatus==='chiuso' || euStatus==='scaduto' || (ch && ch < now))) return false;
+      } else {
+        // MIMIT usa le date
+        if(stato==='aperto'  && !((!ap||ap<=now) && (!ch||ch>=now))) return false;
+        if(stato==='scaduto' && !(ch && ch < now)) return false;
+        if(stato==='futuro'  && !(ap && ap > now)) return false;
+      }
     }
 
     // Regione (solo MIMIT)
@@ -637,11 +657,12 @@ function buildCard(item){
     const s = (item.status||'').toLowerCase();
     if(s==='open'||s==='aperto') statoBadge = '<span class="badge b-attivo">Aperto</span>';
     else if(s==='closed'||s==='chiuso') statoBadge = '<span class="badge b-chiuso">Chiuso</span>';
-    else if(s==='forthcoming'||s==='futuro') statoBadge = '<span class="badge b-fut">Futuro</span>';
-    else statoBadge = `<span class="badge b-chiuso">${item.status||'—'}</span>`;
+    else if(s==='forthcoming'||s==='futuro') statoBadge = '<span class="badge b-fut">In attivazione</span>';
+    else if(s) statoBadge = `<span class="badge b-chiuso">${escHtml(item.status)}</span>`;
+    else statoBadge = '<span class="badge b-chiuso">—</span>';
   } else {
     if(ch && ch < now) statoBadge = '<span class="badge b-scad">Scaduto</span>';
-    else if(ap && ap > now) statoBadge = '<span class="badge b-fut">Futuro</span>';
+    else if(ap && ap > now) statoBadge = '<span class="badge b-fut">In attivazione</span>';
     else statoBadge = '<span class="badge b-attivo">Aperto</span>';
   }
 
@@ -666,8 +687,14 @@ function buildCard(item){
   let chipsHtml = '';
   const sett = Array.isArray(item.settori) ? item.settori.slice(0,3) : [];
   if(sett.length){
-    chipsHtml = '<div class="chips">'+sett.map(s=>`<span class="chip alt">${s}</span>`).join('')+'</div>';
+    chipsHtml = '<div class="chips">'+sett.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')+'</div>';
   }
+
+  // FIX: descrizione EU — usa desc_, summary o description (fallback)
+  const descText = item.desc_ || item.summary || item.description || '';
+  const descHtml = descText
+    ? `<div class="desc">${escHtml(descText)}</div>`
+    : (isEu ? '<div class="desc" style="color:#bbb;font-style:italic;font-size:12px">Nessuna descrizione disponibile</div>' : '');
 
   // Info extra EU
   let extraHtml = '';
@@ -682,15 +709,15 @@ function buildCard(item){
   // Azioni
   const isIn  = ts.shortlist;
   const isOut = ts.excluded;
-  const actShort = `<button class="card-actions ${isIn?'act-in':''}" onclick="toggleShortlist('${item.id}','${item._src}',this)" title="Shortlist">${isIn?'⭐ Shortlisted':'☆ Shortlist'}</button>`;
-  const actExcl  = `<button class="card-actions ${isOut?'act-ex':''}" onclick="toggleExcluded('${item.id}','${item._src}',this)" title="Escludi">${isOut?'🚫 Escluso':'Escludi'}</button>`;
+  const actShort = `<button class="${isIn?'act-in':''}" onclick="toggleShortlist('${item.id}','${item._src}',this)" title="Shortlist">${isIn?'⭐ Shortlisted':'☆ Shortlist'}</button>`;
+  const actExcl  = `<button class="${isOut?'act-ex':''}" onclick="toggleExcluded('${item.id}','${item._src}',this)" title="Escludi">${isOut?'🚫 Escluso':'Escludi'}</button>`;
   const actLink  = item.link ? `<a class="btn-link" href="${escHtml(item.link)}" target="_blank" rel="noopener">🔗 Apri</a>` : '';
   const actDet   = `<button onclick="openModal('${item.id}','${item._src}')" style="margin-left:auto">📄 Dettaglio</button>`;
 
   return `<div class="card${isEu?' is-eu':''}${isOut?' excluded':''}">
   <div class="badges">${fonteBadge}${statoBadge}${scoreHtml}</div>
   <h4><a href="${item.link?escHtml(item.link):'#'}" target="_blank" rel="noopener">${escHtml(item.titolo||'Senza titolo')}</a></h4>
-  ${item.desc_ ? `<div class="desc">${escHtml(item.desc_)}</div>` : ''}
+  ${descHtml}
   ${(budget||agev) ? `<div class="nums">
     <div><div class="nv">${budget||'—'}</div><div class="nl">Budget</div></div>
     <div><div class="nv">${agev||'—'}</div><div class="nl">Agev. max</div></div>
@@ -814,23 +841,56 @@ function renderDashboard(){
   // Regioni top MIMIT
   const regCount = {};
   allMimit.forEach(i => (Array.isArray(i.regioni)?i.regioni:[]).forEach(r=>{ regCount[r]=(regCount[r]||0)+1; }));
-  const topReg = Object.entries(regCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topReg = Object.entries(regCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxR   = topReg[0]?.[1]||1;
 
   // Settori top
   const setCount = {};
   all.forEach(i => (Array.isArray(i.settori)?i.settori:[]).forEach(s=>{ setCount[s]=(setCount[s]||0)+1; }));
-  const topSet = Object.entries(setCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const topSet = Object.entries(setCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxS   = topSet[0]?.[1]||1;
+
+  // Distribuzione stati EU
+  const euStati = {};
+  allEu.forEach(i => {
+    const s = (i.status||'N/D').toLowerCase();
+    const label = s==='open'?'Aperto': s==='forthcoming'?'In attivazione': s==='closed'?'Chiuso': s;
+    euStati[label] = (euStati[label]||0)+1;
+  });
+  const topEuStati = Object.entries(euStati).sort((a,b)=>b[1]-a[1]);
+  const maxES = topEuStati[0]?.[1]||1;
+
+  // Distribuzione stati MIMIT
+  const mimitStati = {aperti:0, inAttivazione:0, scaduti:0};
+  allMimit.forEach(i => {
+    const ap = i.apertura ? new Date(i.apertura) : null;
+    const ch = i.chiusura ? new Date(i.chiusura) : null;
+    if(ch && ch < now) mimitStati.scaduti++;
+    else if(ap && ap > now) mimitStati.inAttivazione++;
+    else mimitStati.aperti++;
+  });
 
   document.getElementById('dash-panels').innerHTML = `
     <div class="panel">
       <h3>Top Regioni (MIMIT)</h3>
-      ${topReg.map(([r,n])=>`<div class="bar"><span class="lab">${r}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxR*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+      ${topReg.map(([r,n])=>`<div class="bar"><span class="lab">${escHtml(r)}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxR*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+      ${topReg.length===0?'<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>':''}
     </div>
     <div class="panel">
       <h3>Top Settori</h3>
-      ${topSet.map(([s,n])=>`<div class="bar b2"><span class="lab">${s}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxS*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+      ${topSet.map(([s,n])=>`<div class="bar b2"><span class="lab">${escHtml(s)}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxS*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+      ${topSet.length===0?'<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>':''}
+    </div>
+    <div class="panel">
+      <h3>Stato Bandi MIMIT</h3>
+      <div class="bar"><span class="lab">✅ Aperti</span><span class="tr"><span class="fl" style="width:${Math.round(mimitStati.aperti/(allMimit.length||1)*100)}%;background:var(--green)"></span></span><span class="n">${mimitStati.aperti}</span></div>
+      <div class="bar"><span class="lab">🔜 In attivazione</span><span class="tr"><span class="fl" style="width:${Math.round(mimitStati.inAttivazione/(allMimit.length||1)*100)}%;background:var(--blue)"></span></span><span class="n">${mimitStati.inAttivazione}</span></div>
+      <div class="bar"><span class="lab">⏱ Scaduti</span><span class="tr"><span class="fl" style="width:${Math.round(mimitStati.scaduti/(allMimit.length||1)*100)}%;background:var(--amber)"></span></span><span class="n">${mimitStati.scaduti}</span></div>
+    </div>
+    <div class="panel">
+      <h3>Stato Bandi EU Portal</h3>
+      ${topEuStati.map(([s,n])=>`<div class="bar b3"><span class="lab">${escHtml(s)}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxES*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+      ${topEuStati.length===0?'<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>':''}
     </div>
   `;
 }
@@ -839,7 +899,7 @@ function renderDashboard(){
    MODAL DETTAGLIO
 ───────────────────────────────────────────── */
 function openModal(id, src){
-  const item = (src==='eu' ? allEu : allMimit).find(i=>i.id===id);
+  const item = (src==='eu' ? allEu : allMimit).find(i=>String(i.id)===String(id));
   if(!item) return;
   const ts  = teamState[id] || {};
   const now = new Date();
@@ -849,6 +909,7 @@ function openModal(id, src){
 
   const rows = [
     src==='eu' && item.programma ? ['Programma', item.programma] : null,
+    src==='eu' && item.status    ? ['Stato EU', item.status]     : null,
     ['Apertura', fmt(ap)],
     ['Scadenza', fmt(ch)],
     item.concedente ? ['Concedente', item.concedente] : null,
@@ -861,6 +922,9 @@ function openModal(id, src){
   const forme   = Array.isArray(item.forme)   ? item.forme   : [];
   const regioni = Array.isArray(item.regioni) ? item.regioni : [];
 
+  // FIX: descrizione nel modal con fallback per EU
+  const descModal = item.desc_ || item.summary || item.description || '';
+
   document.getElementById('modal-content').innerHTML = `
     <div class="badges" style="margin-bottom:12px">
       ${src==='eu'?'<span class="badge b-eu-portal">🇪🇺 EU Portal</span>':'<span class="badge b-naz">🇮🇹 MIMIT</span>'}
@@ -869,7 +933,11 @@ function openModal(id, src){
     <div class="modal-meta">
       ${rows.map(([l,v])=>`<span style="font-size:12.5px;background:#f3f4f0;border-radius:6px;padding:4px 10px"><b>${l}:</b> ${escHtml(String(v))}</span>`).join('')}
     </div>
-    ${item.desc_ ? `<div class="modal-body">${escHtml(item.desc_)}</div>` : ''}
+    ${descModal
+      ? `<div class="modal-body">${escHtml(descModal)}</div>`
+      : (src==='eu'
+          ? '<div class="modal-body" style="color:#aaa;font-style:italic">Nessuna descrizione estesa disponibile nel portale EU per questo bando.</div>'
+          : '')}
     ${settori.length ? `<div class="modal-section"><h3>Settori</h3><div class="chips">${settori.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')}</div></div>` : ''}
     ${forme.length   ? `<div class="modal-section"><h3>Forme agevolazione</h3><div class="chips">${forme.map(f=>`<span class="chip">${escHtml(f)}</span>`).join('')}</div></div>` : ''}
     ${regioni.length ? `<div class="modal-section"><h3>Regioni</h3><div class="chips">${regioni.map(r=>`<span class="chip alt">${escHtml(r)}</span>`).join('')}</div></div>` : ''}
@@ -904,7 +972,12 @@ function showTab(t){
     b.classList.toggle('on',['bandi','shortlist','dashboard'][i]===t);
   });
   if(t==='shortlist') renderShortlist();
-  if(t==='dashboard') renderDashboard();
+  if(t==='dashboard'){
+    // FIX: ri-renderizza sempre la dashboard e forza visibilità
+    renderDashboard();
+    const sec = document.getElementById('sec-dashboard');
+    if(sec) sec.style.display = 'block';
+  }
 }
 
 /* ─────────────────────────────────────────────
