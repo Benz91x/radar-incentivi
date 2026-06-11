@@ -84,8 +84,16 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .bar.b2 .fl{background:var(--blue)} .bar.b3 .fl{background:var(--teal)}
 .bar .n{width:46px;text-align:right;font-weight:600;font-size:12px}
 
+/* SOURCE SWITCHER — filtro padre */
+.source-switcher{display:flex;gap:8px;align-items:center;padding:10px 0 2px}
+.source-switcher span{font-size:11.5px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.src-btn{border:1px solid #444;background:#1c1c1c;color:#bbb;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;transition:.15s;display:flex;align-items:center;gap:6px}
+.src-btn:hover{border-color:var(--green);color:#fff}
+.src-btn.on{color:#fff;border-color:var(--green);background:var(--green-dark)}
+.src-btn.on.eu-on{background:#004b8d;border-color:#0076A8;color:#fff}
+
 /* TOOLBAR / FILTERS */
-.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin:18px 0 14px;box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin:12px 0 14px;box-shadow:var(--shadow)}
 .toolbar select,.toolbar input[type=search]{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:#fff;color:var(--ink)}
 .toolbar input[type=search]{min-width:220px;flex:1}
 .toolbar label{font-size:11px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
@@ -303,7 +311,8 @@ const DEFAULT_CFG = {
 let DATA = null;
 let CFG  = loadJSON('ri_cfg') || structuredClone(DEFAULT_CFG);
 let TEAM = { excluded:{}, shortlist:{}, notes:{} };
-let UI   = {tab:'dash', cls:'in', stato:'attivi', obiettivo:'', forma:'', dim:'', terr:'', fonte:'', q:'', sort:'score', shown:60};
+// UI.sorgente: 'all' | 'it' | 'eu'
+let UI   = {tab:'dash', sorgente:'all', cls:'in', stato:'attivi', obiettivo:'', forma:'', dim:'', terr:'', fonte:'', q:'', sort:'score', shown:60};
 let lastSyncTime = null;
 let KW_RX = [];
 
@@ -379,23 +388,16 @@ function normalizeIt(r){
   };
 }
 
-/* ── NORMALIZZA RIGA EU → doc (adatta campi diversi) ── */
+/* ── NORMALIZZA RIGA EU → doc ── */
 function normalizeEu(r){
-  // I bandi EU non hanno obiettivi nel formato italiano:
-  // li sintetizziamo da tipologie + settori per lo scoring
   const tipologie = Array.isArray(r.tipologie) ? r.tipologie : (r.tipologie ? [r.tipologie] : []);
   const settori   = Array.isArray(r.settori)   ? r.settori   : (r.settori   ? [r.settori]   : []);
-
-  // Mappa lo status EU → stato interno
-  const statusRaw = (r.status || 'open').toLowerCase();
-  // Non calcoliamo qui lo stato (lo farà statusOf), ma usiamo apertura/chiusura
-
   return {
-    id:         'eu_' + r.id,   // prefisso per evitare collisioni ID con bandi italiani
+    id:         'eu_' + r.id,
     _source:    'eu',
     titolo:     r.titolo || r.id || '',
     desc:       r.desc_ || '',
-    obiettivi:  [],              // i bandi EU non hanno obiettivi nel formato IT
+    obiettivi:  [],
     apertura:   r.apertura ? new Date(r.apertura) : null,
     chiusura:   r.chiusura ? new Date(r.chiusura) : null,
     note:       '',
@@ -413,7 +415,7 @@ function normalizeEu(r){
     aggiornato: r.extracted_at ? new Date(r.extracted_at) : null,
     nazionale:  false,
     pnrr:       false,
-    ue:         true,            // sempre UE
+    ue:         true,
     programma:  r.programma || '',
     score: 0, why: [], stato: 'nd', gg: null, cls: 'out'
   };
@@ -424,7 +426,6 @@ async function loadIncentivi(){
   showLoading('Carico i bandi da Supabase…', 'Recupero dati italiani ed europei…');
   setSyncStatus('loading', 'Carico bandi IT + EU…');
   try {
-    // Carica le due tabelle in parallelo
     const [allIt, allEu] = await Promise.all([
       fetchAllRows(TABLE_INCENTIVI),
       fetchAllRows(TABLE_EU)
@@ -441,7 +442,6 @@ async function loadIncentivi(){
       return;
     }
 
-    // Extracted_at: il più recente tra le due tabelle
     const extractedAt = [...allIt, ...allEu].reduce((mx, r) => {
       const ts = r.extracted_at || r.aggiornato || '';
       return ts > mx ? ts : mx;
@@ -545,12 +545,10 @@ function buildKwRegexes(){
 
 function scoreDoc(d){
   let score = 0; const why = [];
-  // Obiettivi (solo bandi IT)
   for(const ob of d.obiettivi){
     const w = CFG.scopeWeights[ob]||0;
     if(w>0){ score+=w; why.push(`Obiettivo «${ob}» +${w}`); }
   }
-  // Keyword matching (titolo + desc) — funziona anche per EU
   let kwPts = 0; const hits = [];
   for(const rx of KW_RX){
     let p=0;
@@ -567,9 +565,7 @@ function scoreDoc(d){
     if(d.budget>=5e7){ score+=1; why.push('Dotazione ≥ 50 M€ +1'); }
     else if(d.budget>=1e7){ score+=0.5; why.push('Dotazione ≥ 10 M€ +0,5'); }
   }
-  // Bonus specifico per bandi UE con keyword EU rilevanti
   if(d._source === 'eu' && d.score === 0 && (d.titolo || d.desc)){
-    // Bonus base per bandi EU con programma rilevante
     if(/horizon|eic|erc|eurostars|cosme|interreg/i.test(d.programma || '')){
       score += 1.5; why.push(`Programma EU rilevante (${d.programma}) +1,5`);
     }
@@ -634,6 +630,10 @@ function filtered(){
   if(!DATA) return [];
   const q = UI.q.toLowerCase();
   return DATA.docs.filter(d=>{
+    // ── FILTRO PADRE SORGENTE ──
+    if(UI.sorgente === 'it' && d._source !== 'it') return false;
+    if(UI.sorgente === 'eu' && d._source !== 'eu') return false;
+
     if(UI.tab==='short' && !TEAM.shortlist[d.id]) return false;
     if(UI.tab==='excl'  && !TEAM.excluded[d.id])  return false;
     if(UI.tab==='bandi'){
@@ -647,16 +647,20 @@ function filtered(){
     if(UI.stato==='futuro'   && d.stato!=='futuro') return false;
     if(UI.stato==='scadenza' && !(d.stato==='attivo'&&d.gg!=null&&d.gg<=SCAD_SOON_GG)) return false;
     if(UI.stato==='chiuso'   && d.stato!=='chiuso') return false;
-    if(UI.obiettivo && !d.obiettivi.includes(UI.obiettivo)) return false;
-    if(UI.forma && !d.forme.includes(UI.forma)) return false;
-    if(UI.dim && !d.dimensioni.includes(UI.dim)) return false;
-    if(UI.terr==='naz' && !d.nazionale) return false;
-    if(UI.terr && UI.terr!=='naz' && !d.regioni.includes(UI.terr)) return false;
-    // Filtro fonte: "ue" mostra sia bandi IT con ue=true SIA tutti i bandi EU portal
-    if(UI.fonte==='pnrr' && !d.pnrr) return false;
-    if(UI.fonte==='ue'   && !d.ue)   return false;
-    if(UI.fonte==='eu'   && d._source !== 'eu') return false;
-    if(UI.fonte==='naz'  && (d.ue || d._source==='eu')) return false;
+
+    // I filtri seguenti si applicano solo ai bandi IT (quando sorgente non è 'eu')
+    if(UI.sorgente !== 'eu'){
+      if(UI.obiettivo && !d.obiettivi.includes(UI.obiettivo)) return false;
+      if(UI.forma && !d.forme.includes(UI.forma)) return false;
+      if(UI.dim && !d.dimensioni.includes(UI.dim)) return false;
+      if(UI.terr==='naz' && !d.nazionale) return false;
+      if(UI.terr && UI.terr!=='naz' && !d.regioni.includes(UI.terr)) return false;
+      // Filtro fonte secondario (solo in modalità "tutti" o "it")
+      if(UI.fonte==='pnrr' && !d.pnrr) return false;
+      if(UI.fonte==='ue'   && !d.ue)   return false;
+      if(UI.fonte==='naz'  && (d.ue || d._source==='eu')) return false;
+    }
+
     if(q && !(d.titolo.toLowerCase().includes(q)||d.desc.toLowerCase().includes(q)||(d.concedente||'').toLowerCase().includes(q)||(d.programma||'').toLowerCase().includes(q))) return false;
     return true;
   }).sort((a,b)=>{
@@ -718,7 +722,6 @@ function kpiData(){
 
 function renderDash(){
   const k=kpiData();
-  const sportello=k.act.filter(d=>!d.chiusura).length;
   const topByScore=[...DATA.docs].filter(d=>(d.stato==='attivo'||d.stato==='futuro')&&d.cls!=='excl'&&d.score>0)
     .sort((a,b)=>b.score-a.score).slice(0,8);
   const maxScore=topByScore[0]?.score||1;
@@ -753,7 +756,7 @@ function renderDash(){
       <div class="v">${k.scad.length}</div><div class="l">Scadenza &lt;60gg</div></div>
     <div class="kpi gr">
       <div class="v">${fmtEur(k.budTot)}</div><div class="l">Dotazione in target</div></div>
-    <div class="kpi bl" onclick="UI.fonte='eu';setTab('bandi')">
+    <div class="kpi bl" onclick="UI.sorgente='eu';setTab('bandi')">
       <div class="v">${k.euCount}</div><div class="l">Bandi EU Portal</div></div>
     <div class="kpi am" onclick="setTab('short')">
       <div class="v">${short}</div><div class="l">Shortlist team</div></div>
@@ -782,13 +785,19 @@ function renderDash(){
   </div>`;
 }
 
+/* ── RENDER LIST con filtro padre ── */
 function renderList(){
   const list=filtered();
   const shown=list.slice(0,UI.shown);
+  const isEuMode = UI.sorgente === 'eu';
+  const isItMode = UI.sorgente === 'it';
+  const isAllMode = UI.sorgente === 'all';
+
+  // Opzioni filtri contestuali (solo da bandi IT)
   const objs=[...new Set(DATA.docs.filter(d=>d._source==='it').flatMap(d=>d.obiettivi))].sort();
-  const forme=[...new Set(DATA.docs.flatMap(d=>d.forme))].sort();
-  const dims=[...new Set(DATA.docs.flatMap(d=>d.dimensioni))].sort();
-  const regs=[...new Set(DATA.docs.flatMap(d=>d.regioni))].sort();
+  const forme=[...new Set(DATA.docs.filter(d=>d._source==='it').flatMap(d=>d.forme))].sort();
+  const dims=[...new Set(DATA.docs.filter(d=>d._source==='it').flatMap(d=>d.dimensioni))].sort();
+  const regs=[...new Set(DATA.docs.filter(d=>d._source==='it').flatMap(d=>d.regioni))].sort();
 
   let chips='';
   if(UI.tab==='bandi'){
@@ -797,8 +806,45 @@ function renderList(){
     </div>`;
   }
 
+  // ── SWITCHER SORGENTE (filtro padre) ──
+  const srcSwitcher = `
+  <div class="source-switcher">
+    <span>Sorgente:</span>
+    <button class="src-btn${UI.sorgente==='all'?' on':''}" data-src="all">
+      🌐 Tutte le fonti
+    </button>
+    <button class="src-btn${UI.sorgente==='it'?' on':''}" data-src="it">
+      🇮🇹 Solo MIMIT
+    </button>
+    <button class="src-btn${UI.sorgente==='eu'?' on eu-on':''}" data-src="eu">
+      🇪🇺 Solo EU Portal
+    </button>
+  </div>`;
+
+  // ── FILTRI CONTESTUALI ──
+  // In modalità EU: mostra solo Stato + Ordina + Cerca (niente Obiettivo/Forma/Dim/Terr/Fonte-IT)
+  // In modalità IT/All: mostra tutti i filtri
+  const filtriIT = (!isEuMode) ? `
+    <label>Obiettivo
+      <select id="f-obj"><option value="">Tutti</option>${objs.map(o=>`<option ${UI.obiettivo===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
+    <label>Forma
+      <select id="f-forma"><option value="">Tutte</option>${forme.map(o=>`<option ${UI.forma===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
+    <label>Dimensione
+      <select id="f-dim"><option value="">Tutte</option>${dims.map(o=>`<option ${UI.dim===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
+    <label>Territorio
+      <select id="f-terr"><option value="">Tutti</option><option value="naz" ${UI.terr==='naz'?'selected':''}>Solo nazionali</option>${regs.map(r=>`<option ${UI.terr===r?'selected':''} value="${esc(r)}">${esc(r)}</option>`).join('')}</select></label>
+    ${isAllMode ? `<label>Fonte IT
+      <select id="f-fonte">
+        <option value="">Tutte</option>
+        <option value="pnrr" ${UI.fonte==='pnrr'?'selected':''}>PNRR</option>
+        <option value="ue" ${UI.fonte==='ue'?'selected':''}>UE (tutti)</option>
+        <option value="naz" ${UI.fonte==='naz'?'selected':''}>Solo nazionali</option>
+      </select></label>` : ''}
+  ` : '';
+
   app.innerHTML=`
   ${chips}
+  ${srcSwitcher}
   <div class="toolbar">
     <label>Stato
       <select id="f-stato">
@@ -809,22 +855,7 @@ function renderList(){
         <option value="chiuso" ${UI.stato==='chiuso'?'selected':''}>Chiusi</option>
         <option value="tutti" ${UI.stato==='tutti'?'selected':''}>Tutti</option>
       </select></label>
-    <label>Obiettivo
-      <select id="f-obj"><option value="">Tutti</option>${objs.map(o=>`<option ${UI.obiettivo===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
-    <label>Forma
-      <select id="f-forma"><option value="">Tutte</option>${forme.map(o=>`<option ${UI.forma===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
-    <label>Dimensione
-      <select id="f-dim"><option value="">Tutte</option>${dims.map(o=>`<option ${UI.dim===o?'selected':''} value="${esc(o)}">${esc(o)}</option>`).join('')}</select></label>
-    <label>Territorio
-      <select id="f-terr"><option value="">Tutti</option><option value="naz" ${UI.terr==='naz'?'selected':''}>Solo nazionali</option>${regs.map(r=>`<option ${UI.terr===r?'selected':''} value="${esc(r)}">${esc(r)}</option>`).join('')}</select></label>
-    <label>Fonte
-      <select id="f-fonte">
-        <option value="">Tutte</option>
-        <option value="eu" ${UI.fonte==='eu'?'selected':''}>🇪🇺 Solo EU Portal</option>
-        <option value="pnrr" ${UI.fonte==='pnrr'?'selected':''}>PNRR</option>
-        <option value="ue" ${UI.fonte==='ue'?'selected':''}>UE (tutti)</option>
-        <option value="naz" ${UI.fonte==='naz'?'selected':''}>Solo nazionali IT</option>
-      </select></label>
+    ${filtriIT}
     <label>Ordina
       <select id="f-sort">
         <option value="score" ${UI.sort==='score'?'selected':''}>Score</option>
@@ -832,18 +863,46 @@ function renderList(){
         <option value="budget" ${UI.sort==='budget'?'selected':''}>Dotazione</option>
         <option value="apertura" ${UI.sort==='apertura'?'selected':''}>Apertura</option>
       </select></label>
-    <input type="search" id="f-q" placeholder="Cerca titolo, descrizione, ente, programma…" value="${esc(UI.q)}">
+    <input type="search" id="f-q" placeholder="${isEuMode ? 'Cerca titolo, programma EU, settore…' : 'Cerca titolo, descrizione, ente, programma…'}" value="${esc(UI.q)}">
   </div>
-  <div class="count-info">${list.length.toLocaleString('it-IT')} risultati</div>
+  <div class="count-info">${list.length.toLocaleString('it-IT')} risultati${isEuMode?' · EU Funding &amp; Tenders Portal':isItMode?' · MIMIT incentivi.gov.it':''}</div>
   <div class="grid" id="grid">${shown.map(cardHtml).join('')}</div>
   ${list.length>UI.shown?`<div class="morebar"><button class="btn light" id="btn-more">Carica altri (${list.length-UI.shown} rimanenti)</button></div>`:''}`;
 
-  ['stato','obj','forma','dim','terr','fonte','sort'].forEach(k=>{
-    const el=document.getElementById('f-'+k);
-    if(el) el.onchange=e=>{ UI[k==='obj'?'obiettivo':k]=e.target.value; UI.shown=60; render(); };
-  });
+  // Wire filtri
+  const fStato = document.getElementById('f-stato');
+  if(fStato) fStato.onchange=e=>{ UI.stato=e.target.value; UI.shown=60; render(); };
+
+  if(!isEuMode){
+    const fObj  = document.getElementById('f-obj');
+    const fForma= document.getElementById('f-forma');
+    const fDim  = document.getElementById('f-dim');
+    const fTerr = document.getElementById('f-terr');
+    const fFonte= document.getElementById('f-fonte');
+    if(fObj)   fObj.onchange  =e=>{ UI.obiettivo=e.target.value; UI.shown=60; render(); };
+    if(fForma) fForma.onchange=e=>{ UI.forma=e.target.value;     UI.shown=60; render(); };
+    if(fDim)   fDim.onchange  =e=>{ UI.dim=e.target.value;       UI.shown=60; render(); };
+    if(fTerr)  fTerr.onchange =e=>{ UI.terr=e.target.value;      UI.shown=60; render(); };
+    if(fFonte) fFonte.onchange=e=>{ UI.fonte=e.target.value;     UI.shown=60; render(); };
+  }
+
+  const fSort = document.getElementById('f-sort');
+  if(fSort) fSort.onchange=e=>{ UI.sort=e.target.value; UI.shown=60; render(); };
+
   document.getElementById('f-q').oninput=e=>{ UI.q=e.target.value; UI.shown=60; render(); };
   document.querySelectorAll('[data-cls]').forEach(b=>b.onclick=()=>{ UI.cls=b.dataset.cls; UI.shown=60; render(); });
+
+  // Wire switcher sorgente
+  document.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
+    UI.sorgente=b.dataset.src;
+    // Reset filtri contestuali IT quando si passa a EU
+    if(UI.sorgente==='eu'){
+      UI.obiettivo=''; UI.forma=''; UI.dim=''; UI.terr=''; UI.fonte='';
+    }
+    UI.shown=60;
+    render();
+  });
+
   const bm=document.getElementById('btn-more');
   if(bm) bm.onclick=()=>{ UI.shown+=60; render(); };
   wireCards();
