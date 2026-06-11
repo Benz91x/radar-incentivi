@@ -10,13 +10,17 @@ Endpoint CORRETTO (file JSON statico pubblico, nessuna auth richiesta):
 NOTA: l'endpoint api.tech.ec.europa.eu/search-api non è pubblico
       e risponde 405/400. Usare solo il JSON statico sopra.
 
+CHANGELOG (v2):
+- programme: fallback dal prefisso dell'identifier (CEF-DIG-2026-… → CEF)
+- passa anche keywords/tags al normalizzato (usati come "settori" dall'upload)
+
 Richiede:
     pip install requests
 """
 
 import json
+import re
 import sys
-import time
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -41,6 +45,8 @@ FILTER_PROGRAMMES = None  # es. ["HORIZON", "DIGITAL", "LIFE", "CEF"]
 # Status da includere (None = tutti)
 FILTER_STATUS = ["31094502", "31094501"]  # 31094502=open, 31094501=forthcoming
 # Per solo open: ["31094502"]
+
+PROG_PREFIX_RE = re.compile(r"^[A-Z0-9]{2,12}$")
 
 
 def build_session() -> requests.Session:
@@ -84,12 +90,10 @@ def extract_calls(data: dict) -> list[dict]:
     """
     Estrae le call/topic dal JSON grantsTenders.
     La struttura è: data["fundingData"]["GrantTenderObj"] è la lista.
-    Ogni elemento ha campi come: identifier, title, status, programmeAbbreviation, ecc.
     """
     try:
         items = data["fundingData"]["GrantTenderObj"]
     except (KeyError, TypeError):
-        # Struttura alternativa: lista diretta
         if isinstance(data, list):
             items = data
         else:
@@ -107,12 +111,9 @@ def extract_calls(data: dict) -> list[dict]:
         if FILTER_STATUS:
             item_status = item.get("status", {}) if isinstance(item.get("status"), dict) else {}
             status_id = str(item_status.get("id", ""))
-            # Alcuni record hanno status come stringa diretta
             if isinstance(item.get("status"), str):
                 status_id = item["status"]
-
-            # FIX: scarta i record con status_id vuoto o non nella whitelist
-            # (prima, status_id == "" bypassava il filtro ed includeva bandi scaduti)
+            # Scarta i record con status_id vuoto o non in whitelist
             if not status_id or status_id not in FILTER_STATUS:
                 continue
 
@@ -142,10 +143,9 @@ def extract_calls(data: dict) -> list[dict]:
 def normalize_call(item: dict) -> dict:
     """
     Normalizza i campi di una call in un formato piatto e leggibile.
-    Compatibile con il formato atteso dal resto di radar-incentivi.
+    Compatibile con il formato atteso da upload_eu_to_supabase.py.
     """
     def ms_to_date(ms) -> str:
-        """Converte timestamp in millisecondi in stringa YYYY-MM-DD."""
         if not ms:
             return ""
         try:
@@ -160,7 +160,6 @@ def normalize_call(item: dict) -> dict:
     else:
         status_label = str(status_raw)
 
-    # Deadline: può essere lista di timestamp
     deadlines = item.get("deadlineDatesLong", []) or []
     deadline_1 = ms_to_date(deadlines[0]) if len(deadlines) > 0 else ""
     deadline_2 = ms_to_date(deadlines[1]) if len(deadlines) > 1 else ""
@@ -174,17 +173,25 @@ def normalize_call(item: dict) -> dict:
 
     title = item.get("title") or item.get("callTitle") or ""
 
+    # Programme: campo esplicito, altrimenti prefisso dell'identifier
+    programme = item.get("programmeAbbreviation", "") or ""
+    if not programme and isinstance(identifier, str) and "-" in identifier:
+        prefix = identifier.split("-", 1)[0].strip()
+        if PROG_PREFIX_RE.fullmatch(prefix):
+            programme = prefix
+
     return {
         "identifier": identifier,
         "title": title,
         "status": status_label,
-        "programme": item.get("programmeAbbreviation", ""),
+        "programme": programme,
         "type": item.get("type", {}).get("label", "") if isinstance(item.get("type"), dict) else str(item.get("type", "")),
         "open_date": ms_to_date(item.get("plannedOpeningDateLong") or item.get("startDate")),
         "deadline": deadline_1,
         "deadline_2": deadline_2,
         "publication_date": ms_to_date(item.get("publicationDateLong")),
         "budget_topic": item.get("budgetTopicActionBudget") or item.get("budget") or "",
+        "tags": item.get("tags") or item.get("keywords") or [],
         "url": (
             f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/"
             f"screen/opportunities/topic-details/{identifier.lower()}"
@@ -197,34 +204,28 @@ def normalize_call(item: dict) -> dict:
 def main() -> int:
     session = build_session()
 
-    # 1. Scarica il JSON statico
     try:
         data = download_grants_json(session)
     except Exception as e:
         print(f"ERRORE download JSON: {e}")
         return 1
 
-    # 2. Estrai le call
     raw_calls = extract_calls(data)
     print(f"  Call/Topic trovati dopo filtro status: {len(raw_calls)}")
 
     if not raw_calls:
         print("\nATTENZIONE: nessuna call estratta. Controlla i filtri FILTER_STATUS.")
-        # Salva comunque una lista vuota
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump([], f)
         return 0
 
-    # 3. Normalizza
     calls = [normalize_call(c) for c in raw_calls]
 
-    # 4. Salva
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(calls, f, ensure_ascii=False, indent=2)
 
     print(f"\n✓ Salvate {len(calls)} call EU in {OUTPUT_FILE}")
 
-    # Stampa un campione per verifica
     if calls:
         sample = calls[0]
         print("\n  Esempio prima call:")
