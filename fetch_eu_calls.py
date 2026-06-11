@@ -110,7 +110,10 @@ def extract_calls(data: dict) -> list[dict]:
             # Alcuni record hanno status come stringa diretta
             if isinstance(item.get("status"), str):
                 status_id = item["status"]
-            if status_id not in FILTER_STATUS and status_id not in [""]:
+
+            # FIX: scarta i record con status_id vuoto o non nella whitelist
+            # (prima, status_id == "" bypassava il filtro ed includeva bandi scaduti)
+            if not status_id or status_id not in FILTER_STATUS:
                 continue
 
         # Filtra per programma se richiesto

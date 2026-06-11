@@ -29,6 +29,21 @@ TABLE = "incentivi_eu"
 CHUNK_SIZE = 100
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Mappa dei valori status EU verso i valori normalizzati del DB.
+# FIX: rimosso il fallback `or "open"` che forzava i bandi scaduti/sconosciuti
+# ad apparire come aperti. Ora i valori non riconosciuti diventano "forthcoming"
+# (più sicuro che assumerli aperti).
+STATUS_MAP = {
+    "open": "open",
+    "forthcoming": "forthcoming",
+    "closed": "closed",
+    "expired": "closed",
+    "under evaluation": "closed",
+    "signed": "closed",
+    "cancelled": "closed",
+    "withdrawn": "closed",
+}
+
 
 def as_str(v) -> str:
     if isinstance(v, list):
@@ -172,12 +187,16 @@ def normalize_row(raw: dict, extracted_at: str) -> dict | None:
     # Tipo
     tipo = as_str(raw.get("type") or _raw.get("type", {}) or "")
 
-    # Status
+    # Status — FIX: rimosso il fallback `or "open"` che causava il bug principale.
+    # I bandi con status vuoto o non riconosciuto vengono ora impostati a
+    # "forthcoming" (valore sicuro) invece di "open" (valore fuorviante).
     status_raw = raw.get("status", "")
     if isinstance(status_raw, dict):
-        status = as_str(status_raw.get("label") or status_raw.get("abbreviation") or "open").lower()
+        status_str = as_str(status_raw.get("label") or status_raw.get("abbreviation") or "").lower().strip()
     else:
-        status = as_str(status_raw).lower() or "open"
+        status_str = as_str(status_raw).lower().strip()
+
+    status = STATUS_MAP.get(status_str, status_str) or "forthcoming"
 
     # Settori/keyword dal _raw
     settori = as_list(
@@ -230,9 +249,15 @@ def upload(docs: list[dict], sb: Client):
     with_deadline = sum(1 for r in rows if r.get("chiusura"))
     with_budget = sum(1 for r in rows if r.get("budget"))
     with_apertura = sum(1 for r in rows if r.get("apertura"))
+    open_count = sum(1 for r in rows if r.get("status") == "open")
+    forthcoming_count = sum(1 for r in rows if r.get("status") == "forthcoming")
+    closed_count = sum(1 for r in rows if r.get("status") == "closed")
     print(f"  📅 Con deadline: {with_deadline}/{len(rows)}")
     print(f"  💰 Con budget:   {with_budget}/{len(rows)}")
     print(f"  📆 Con apertura: {with_apertura}/{len(rows)}")
+    print(f"  ✅ Open:         {open_count}")
+    print(f"  🔜 Forthcoming:  {forthcoming_count}")
+    print(f"  🔒 Closed:       {closed_count}")
 
 
 def main() -> int:
