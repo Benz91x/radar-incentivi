@@ -2,18 +2,16 @@
 """
 fetch_eu_calls.py — Radar Incentivi EU
 
-Scarica le call aperte dal portale EU Funding & Tenders (SEDIA API)
-e salva il risultato in eu_calls_raw.json.
+Scarica le call aperte dal portale EU Funding & Tenders.
 
-Endpoint ufficiale:
-  GET https://api.tech.ec.europa.eu/search-api/prod/rest/search
-  Parametri: apiKey=SEDIA, text=*, type=CallForProposal, status=open
+Endpoint CORRETTO (file JSON statico pubblico, nessuna auth richiesta):
+  https://ec.europa.eu/info/funding-tenders/opportunities/data/referenceData/grantsTenders.json
+
+NOTA: l'endpoint api.tech.ec.europa.eu/search-api non è pubblico
+      e risponde 405/400. Usare solo il JSON statico sopra.
 
 Richiede:
     pip install requests
-
-Uso:
-    python fetch_eu_calls.py
 """
 
 import json
@@ -24,177 +22,213 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 OUTPUT_FILE = "eu_calls_raw.json"
-PAGE_SIZE = 50
 
-# Endpoint GET ufficiale SEDIA — nessuna autenticazione richiesta
-BASE_URL = "https://api.tech.ec.europa.eu/search-api/prod/rest/search"
+# URL del JSON statico aggiornato quotidianamente dalla Commissione Europea
+GRANTS_JSON_URL = (
+    "https://ec.europa.eu/info/funding-tenders/opportunities/data/"
+    "referenceData/grantsTenders.json"
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "application/json",
+    "Accept": "application/json, */*",
     "Accept-Language": "en",
 }
+
+# Programmi da includere (None = tutti)
+FILTER_PROGRAMMES = None  # es. ["HORIZON", "DIGITAL", "LIFE", "CEF"]
+
+# Status da includere (None = tutti)
+FILTER_STATUS = ["31094502", "31094501"]  # 31094502=open, 31094501=forthcoming
+# Per solo open: ["31094502"]
 
 
 def build_session() -> requests.Session:
     session = requests.Session()
     retry = Retry(
-        total=4,
+        total=5,
         backoff_factor=2,
         status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
     )
     session.mount("https://", HTTPAdapter(max_retries=retry))
     return session
 
 
-def fetch_page(session: requests.Session, page: int) -> dict:
-    """Scarica una pagina di call aperte via GET."""
-    params = {
-        "apiKey": "SEDIA",
-        "text": "*",
-        "pageSize": PAGE_SIZE,
-        "pageNumber": page,
-        "type": "CallForProposal",
-        "status": "open",
-        "sortBy": "startDate",
-        "sortOrder": "DESC",
-    }
-    r = session.get(BASE_URL, params=params, headers=HEADERS, timeout=60)
+def download_grants_json(session: requests.Session) -> dict:
+    """Scarica il JSON statico grantsTenders.json con progress a blocchi."""
+    print(f"Scarico {GRANTS_JSON_URL} ...")
+    r = session.get(GRANTS_JSON_URL, headers=HEADERS, stream=True, timeout=120)
     r.raise_for_status()
-    return r.json()
+
+    total_size = int(r.headers.get("content-length", 0))
+    downloaded = 0
+    chunks = []
+
+    for chunk in r.iter_content(chunk_size=65536):
+        if chunk:
+            chunks.append(chunk)
+            downloaded += len(chunk)
+            if total_size:
+                pct = downloaded / total_size * 100
+                print(f"  Download: {downloaded/1024/1024:.1f} MB / {total_size/1024/1024:.1f} MB ({pct:.0f}%)  ", end="\r")
+            else:
+                print(f"  Download: {downloaded/1024/1024:.1f} MB  ", end="\r")
+
+    print()
+    raw = b"".join(chunks)
+    print(f"  File scaricato: {len(raw)/1024/1024:.1f} MB")
+    return json.loads(raw.decode("utf-8"))
 
 
-def fetch_all_calls() -> list[dict]:
-    session = build_session()
-    all_results = []
-    seen_ids = set()
-    page = 1
-
-    print("Scarico call aperte dal portale EU Funding & Tenders (SEDIA API)...")
-
-    # Prima chiamata per capire quante pagine ci sono
+def extract_calls(data: dict) -> list[dict]:
+    """
+    Estrae le call/topic dal JSON grantsTenders.
+    La struttura è: data["fundingData"]["GrantTenderObj"] è la lista.
+    Ogni elemento ha campi come: identifier, title, status, programmeAbbreviation, ecc.
+    """
     try:
-        data = fetch_page(session, page)
-    except Exception as e:
-        print(f"  ERRORE prima chiamata: {e}")
-        # Prova endpoint alternativo topics
-        return fetch_topics_fallback(session)
+        items = data["fundingData"]["GrantTenderObj"]
+    except (KeyError, TypeError):
+        # Struttura alternativa: lista diretta
+        if isinstance(data, list):
+            items = data
+        else:
+            print("ERRORE: struttura JSON non riconosciuta.")
+            print(f"  Chiavi trovate: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+            return []
 
-    total = data.get("totalCount", data.get("total", 0))
-    hits = data.get("results", data.get("hits", []))
-    print(f"  Totale call disponibili: {total}")
+    print(f"  Elementi totali nel JSON: {len(items)}")
 
-    for item in hits:
-        doc = item.get("metadata", item)
+    calls = []
+    seen = set()
+
+    for item in items:
+        # Filtra per status se richiesto
+        if FILTER_STATUS:
+            item_status = item.get("status", {}) if isinstance(item.get("status"), dict) else {}
+            status_id = str(item_status.get("id", ""))
+            # Alcuni record hanno status come stringa diretta
+            if isinstance(item.get("status"), str):
+                status_id = item["status"]
+            if status_id not in FILTER_STATUS and status_id not in [""]:
+                continue
+
+        # Filtra per programma se richiesto
+        if FILTER_PROGRAMMES:
+            prog = item.get("programmeAbbreviation", "") or ""
+            if not any(p.upper() in prog.upper() for p in FILTER_PROGRAMMES):
+                continue
+
+        # Dedup per identifier
         rid = (
-            doc.get("identifier", [""])[0] if isinstance(doc.get("identifier"), list)
-            else doc.get("identifier") or doc.get("id") or ""
+            item.get("identifier") or
+            item.get("id") or
+            item.get("callIdentifier") or
+            ""
         )
-        if rid and rid not in seen_ids:
-            seen_ids.add(rid)
-            all_results.append(doc)
+        if rid and rid in seen:
+            continue
+        if rid:
+            seen.add(rid)
 
-    print(f"  Pagina {page}: {len(hits)} risultati → totale univoci: {len(all_results)}")
+        calls.append(item)
 
-    import math
-    total_pages = math.ceil(total / PAGE_SIZE) if total else 1
+    return calls
 
-    for page in range(2, min(total_pages + 1, 201)):  # max 200 pagine = 10.000 call
-        time.sleep(0.5)
+
+def normalize_call(item: dict) -> dict:
+    """
+    Normalizza i campi di una call in un formato piatto e leggibile.
+    Compatibile con il formato atteso dal resto di radar-incentivi.
+    """
+    def ms_to_date(ms) -> str:
+        """Converte timestamp in millisecondi in stringa YYYY-MM-DD."""
+        if not ms:
+            return ""
         try:
-            data = fetch_page(session, page)
-            hits = data.get("results", data.get("hits", []))
-            if not hits:
-                break
-            for item in hits:
-                doc = item.get("metadata", item)
-                rid = (
-                    doc.get("identifier", [""])[0] if isinstance(doc.get("identifier"), list)
-                    else doc.get("identifier") or doc.get("id") or ""
-                )
-                if rid and rid not in seen_ids:
-                    seen_ids.add(rid)
-                    all_results.append(doc)
-            print(f"  Pagina {page}/{total_pages}: {len(hits)} risultati → totale univoci: {len(all_results)}", end="\r")
-        except Exception as e:
-            print(f"\n  Errore pagina {page}: {e} — interrompo")
-            break
+            import datetime
+            return datetime.datetime.utcfromtimestamp(int(ms) / 1000).strftime("%Y-%m-%d")
+        except Exception:
+            return str(ms)
 
-    print(f"\n  Download completato: {len(all_results)} call uniche scaricate")
-    return all_results
+    status_raw = item.get("status", {})
+    if isinstance(status_raw, dict):
+        status_label = status_raw.get("label", status_raw.get("abbreviation", ""))
+    else:
+        status_label = str(status_raw)
 
+    # Deadline: può essere lista di timestamp
+    deadlines = item.get("deadlineDatesLong", []) or []
+    deadline_1 = ms_to_date(deadlines[0]) if len(deadlines) > 0 else ""
+    deadline_2 = ms_to_date(deadlines[1]) if len(deadlines) > 1 else ""
 
-def fetch_topics_fallback(session: requests.Session) -> list[dict]:
-    """
-    Fallback: usa l'endpoint /topics che restituisce i topic aperti
-    di Horizon Europe e altri programmi.
-    """
-    print("\nFallback: provo endpoint /topics...")
-    url = "https://api.tech.ec.europa.eu/search-api/prod/rest/search"
-    params = {
-        "apiKey": "SEDIA",
-        "text": "*",
-        "pageSize": PAGE_SIZE,
-        "pageNumber": 1,
-        "type": "Topic",
-        "status": "open",
+    identifier = (
+        item.get("identifier") or
+        item.get("callIdentifier") or
+        item.get("id") or
+        ""
+    )
+
+    title = item.get("title") or item.get("callTitle") or ""
+
+    return {
+        "identifier": identifier,
+        "title": title,
+        "status": status_label,
+        "programme": item.get("programmeAbbreviation", ""),
+        "type": item.get("type", {}).get("label", "") if isinstance(item.get("type"), dict) else str(item.get("type", "")),
+        "open_date": ms_to_date(item.get("plannedOpeningDateLong") or item.get("startDate")),
+        "deadline": deadline_1,
+        "deadline_2": deadline_2,
+        "publication_date": ms_to_date(item.get("publicationDateLong")),
+        "budget_topic": item.get("budgetTopicActionBudget") or item.get("budget") or "",
+        "url": (
+            f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/"
+            f"screen/opportunities/topic-details/{identifier.lower()}"
+            if identifier else ""
+        ),
+        "_raw": item,  # mantieni il raw per uso futuro
     }
-    results = []
-    seen_ids = set()
-    page = 1
-
-    while True:
-        params["pageNumber"] = page
-        try:
-            r = session.get(url, params=params, headers=HEADERS, timeout=60)
-            print(f"  [topics] pagina {page} → HTTP {r.status_code}")
-            r.raise_for_status()
-            data = r.json()
-        except Exception as e:
-            print(f"  [topics] errore: {e}")
-            break
-
-        hits = data.get("results", data.get("hits", []))
-        if not hits:
-            break
-
-        for item in hits:
-            doc = item.get("metadata", item)
-            rid = (
-                doc.get("identifier", [""])[0] if isinstance(doc.get("identifier"), list)
-                else doc.get("identifier") or doc.get("id") or ""
-            )
-            if rid and rid not in seen_ids:
-                seen_ids.add(rid)
-                results.append(doc)
-
-        total = data.get("totalCount", data.get("total", 0))
-        import math
-        total_pages = math.ceil(total / PAGE_SIZE) if total else 1
-        print(f"  Pagina {page}/{total_pages}: {len(hits)} risultati → totale: {len(results)}")
-
-        if page >= total_pages or len(hits) < PAGE_SIZE:
-            break
-        page += 1
-        time.sleep(0.5)
-
-    return results
 
 
 def main() -> int:
-    calls = fetch_all_calls()
+    session = build_session()
 
-    if not calls:
-        print("\nATTENZIONE: nessuna call scaricata.")
+    # 1. Scarica il JSON statico
+    try:
+        data = download_grants_json(session)
+    except Exception as e:
+        print(f"ERRORE download JSON: {e}")
+        return 1
+
+    # 2. Estrai le call
+    raw_calls = extract_calls(data)
+    print(f"  Call/Topic trovati dopo filtro status: {len(raw_calls)}")
+
+    if not raw_calls:
+        print("\nATTENZIONE: nessuna call estratta. Controlla i filtri FILTER_STATUS.")
+        # Salva comunque una lista vuota
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump([], f)
         return 0
 
+    # 3. Normalizza
+    calls = [normalize_call(c) for c in raw_calls]
+
+    # 4. Salva
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(calls, f, ensure_ascii=False, indent=2)
 
     print(f"\n✓ Salvate {len(calls)} call EU in {OUTPUT_FILE}")
+
+    # Stampa un campione per verifica
+    if calls:
+        sample = calls[0]
+        print("\n  Esempio prima call:")
+        for k, v in sample.items():
+            if k != "_raw":
+                print(f"    {k}: {v}")
+
     return 0
 
 
