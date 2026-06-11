@@ -351,7 +351,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
    CONFIG SUPABASE
 ───────────────────────────────────────────── */
 const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NzkzMjcsImV4cCI6MjA2NTE1NTMyN30.Wr1u46sFUKjUyv3UBKcI3UBKcI3HMJVhQz0RM2sFUKj';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
 
 async function sbFetch(table, params=''){
   const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
