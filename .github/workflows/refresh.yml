@@ -1,6 +1,8 @@
 name: Refresh Incentivi → Supabase
 
 on:
+  schedule:
+    - cron: '0 3 * * *'   # ogni notte alle 03:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -16,8 +18,10 @@ jobs:
       - name: Installa dipendenze
         run: pip install requests supabase
 
-      - name: Carica dati su Supabase
+      - name: Scarica dati freschi da incentivi.gov.it e carica su Supabase
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          INPUT_FILE: incentivi_raw.json
+          # INPUT_FILE vuoto = forza il download dall'API invece di riusare
+          # lo snapshot statico incentivi_raw.json committato nel repo
+          INPUT_FILE: ''
         run: python upload_to_supabase.py

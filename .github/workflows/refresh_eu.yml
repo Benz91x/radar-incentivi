@@ -1,6 +1,8 @@
 name: Refresh Call EU → Supabase
 
 on:
+  schedule:
+    - cron: '30 3 * * *'   # ogni notte alle 03:30 UTC
   workflow_dispatch:
 
 jobs:
