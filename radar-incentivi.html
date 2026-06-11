@@ -198,7 +198,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .pager button.on{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
 .pager button:disabled{opacity:.4;cursor:default}
 
-/* SECTIONS — FIX: gestite SOLO via classe .on, mai via inline style */
+/* FIX #3 — SECTIONS gestite SOLO via classe .on, MAI via inline style */
 .section{display:none;padding:22px 0 40px}
 .section.on{display:block}
 
@@ -246,7 +246,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
       </div>
     </div>
     <nav class="tabs">
-      <!-- FIX: Dashboard come prima tab (landing page) -->
+      <!-- FIX #2: Dashboard come prima tab attiva (landing page) -->
       <button class="on" onclick="showTab('dashboard')">📊 Dashboard</button>
       <button onclick="showTab('bandi')">📋 Bandi <span class="cnt" id="cnt-bandi-tab">0</span></button>
       <button onclick="showTab('shortlist')">⭐ Shortlist <span class="cnt" id="cnt-short-tab">0</span></button>
@@ -258,7 +258,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
   <div class="wrap">
 
     <!-- ═══════════════════ SEZIONE DASHBOARD (landing) ═══════════════════ -->
-    <!-- FIX: sec-dashboard è la sezione con classe .on all'avvio -->
+    <!-- FIX #2: sec-dashboard ha classe .on all'avvio — è la landing page -->
     <div class="section on" id="sec-dashboard">
       <div style="margin:20px 0 16px"><h2 style="font-size:17px">📊 Dashboard</h2></div>
       <div class="kpis" id="kpi-row"></div>
@@ -392,11 +392,16 @@ let lastFiltered  = [];
 let activeTeamTab = 'shortlist';
 
 /* ─────────────────────────────────────────────
-   SCORING AUTOMATICO
-   Criteri per bandi MIMIT:
-   - IN TARGET:    in shortlist, OPPURE budget >= 100k + apertura attiva + ha settori
-   - FUORI TARGET: escluso manualmente, OPPURE scaduto, OPPURE budget < 5k
-   - DA VALUTARE:  tutto il resto
+   FIX #1 — SCORING AUTOMATICO
+   Algoritmo basato su criteri reali del bando:
+   - budget disponibile
+   - numero settori coperti
+   - stato apertura
+   - presenza forma agevolazione
+   - bonus PNRR
+   Score >= 5 → IN TARGET
+   Score <= 0 → FUORI TARGET
+   Altrimenti → DA VALUTARE
 ───────────────────────────────────────────── */
 function scoreItem(item){
   const ts  = teamState[item.id];
@@ -404,7 +409,7 @@ function scoreItem(item){
   const ch  = item.chiusura ? new Date(item.chiusura) : null;
   const ap  = item.apertura ? new Date(item.apertura) : null;
 
-  // Priorità 1: stato manuale
+  // Priorità 1: classificazione manuale dell'utente
   if(ts && ts.shortlist) return 'in';
   if(ts && ts.excluded)  return 'out';
 
@@ -414,7 +419,7 @@ function scoreItem(item){
   // Priorità 3: scoring automatico sui dati del bando
   let score = 0;
 
-  // Budget disponibile (agev_max o budget)
+  // Budget disponibile (agev_max o budget totale)
   const bud = Number(item.agev_max || item.budget || 0);
   if(bud >= 500000)  score += 3;
   else if(bud >= 100000) score += 2;
@@ -430,14 +435,11 @@ function scoreItem(item){
   const isAperto = (!ap || ap <= now) && (!ch || ch >= now);
   if(isAperto) score += 1;
 
-  // È futuro (interessante ma non urgente)
-  if(ap && ap > now) score += 0; // neutro
-
   // Ha forma agevolazione definita
   const forme = Array.isArray(item.forme) ? item.forme : [];
   if(forme.length > 0) score += 1;
 
-  // PNRR bonus
+  // Bonus PNRR
   if((item.titolo||'').toUpperCase().includes('PNRR')) score += 1;
 
   if(score >= 5) return 'in';
@@ -469,12 +471,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cnt-mimit').textContent = allMimit.length;
     document.getElementById('cnt-eu').textContent    = allEu.length;
 
-    // FIX: popola entrambi i select all'avvio
+    // FIX #4: popola ENTRAMBI i select dinamici all'avvio (non solo regione)
     populateRegioneSelect();
     populateTipoSelect();
     applyFilters();
 
-    // FIX: renderizza la dashboard (è la landing page)
+    // FIX #2: renderizza la dashboard — è la landing page
     renderDashboard();
 
     setSyncState('ok', `Aggiornato · ${allMimit.length} MIMIT + ${allEu.length} EU`);
@@ -543,6 +545,7 @@ function populateRegioneSelect(){
   sel.value = cur;
 }
 
+/* FIX #4 — populateTipoSelect chiamata anche all'avvio in DOMContentLoaded */
 function populateTipoSelect(){
   const sel = document.getElementById('sel-tipo');
   const cur = sel.value;
@@ -700,7 +703,7 @@ function buildCard(item){
     ? '<span class="badge b-eu-portal">🇪🇺 EU Portal</span>'
     : '<span class="badge b-naz">🇮🇹 MIMIT</span>';
 
-  // FIX: score con algoritmo automatico + indicatore "auto" se non manuale
+  // FIX #1: score con algoritmo automatico + indicatore visivo se classificazione automatica vs manuale
   let scoreHtml = '';
   if(!isEu){
     const sc  = scoreItem(item);
@@ -709,7 +712,7 @@ function buildCard(item){
     const ts2 = teamState[item.id];
     const isManual = ts2 && (ts2.shortlist || ts2.excluded);
     const autoTag = isManual ? '' : '<span class="score-auto">(auto)</span>';
-    scoreHtml = `<span class="score ${cls}" title="${lab} — ${isManual?'Classificazione manuale':'Score automatico'}">${lab}${autoTag}</span>`;
+    scoreHtml = `<span class="score ${cls}" title="${lab} — ${isManual?'Classificazione manuale':'Score automatico basato su budget, settori e stato apertura'}">${lab}${autoTag}</span>`;
   }
 
   const fmtDate = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}) : '—';
@@ -855,7 +858,7 @@ function renderDashboard(){
   });
   const shortN  = Object.values(teamState).filter(t=>t.shortlist).length;
 
-  // FIX: calcola quanti bandi MIMIT sono "In target" con lo scoring automatico
+  // FIX #1: conta i bandi MIMIT "In target" usando lo scoring automatico
   const inTargetN = allMimit.filter(i => scoreItem(i) === 'in').length;
 
   document.getElementById('kpi-row').innerHTML = `
@@ -899,7 +902,7 @@ function renderDashboard(){
     else mimitStati.aperti++;
   });
 
-  // Score distribution MIMIT
+  // Score distribution MIMIT (FIX #1: usa algoritmo reale)
   const scoreDist = {in:0, val:0, out:0};
   allMimit.forEach(i => { scoreDist[scoreItem(i)]++; });
   const maxSc = Math.max(...Object.values(scoreDist), 1);
@@ -931,7 +934,7 @@ function renderDashboard(){
       <div class="bar"><span class="lab">✅ In target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.in/maxSc*100)}%;background:var(--green)"></span></span><span class="n">${scoreDist.in}</span></div>
       <div class="bar"><span class="lab">🔶 Da valutare</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.val/maxSc*100)}%;background:var(--amber)"></span></span><span class="n">${scoreDist.val}</span></div>
       <div class="bar"><span class="lab">⬜ Fuori target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.out/maxSc*100)}%;background:#bbb"></span></span><span class="n">${scoreDist.out}</span></div>
-      <p style="font-size:11px;color:var(--ink-3);margin-top:10px">Criteri: budget disponibile, settori coperti, stato apertura, forma agevolazione</p>
+      <p style="font-size:11px;color:var(--ink-3);margin-top:10px">Criteri: budget disponibile, settori coperti, stato apertura, forma agevolazione, PNRR</p>
     </div>
   `;
 }
@@ -947,10 +950,14 @@ function goToBandiFiltered(chip){
 }
 
 /* ─────────────────────────────────────────────
-   NAV TABS — FIX: usa SOLO classList, mai inline style
+   FIX #3 — NAV TABS: usa SOLO classList, MAI inline style
+   Il problema precedente: style.display='block' sul sec-dashboard
+   aveva priorità CSS superiore a .section{display:none}, causando
+   sovrapposizione dei pannelli quando si cambiava tab.
+   Soluzione: toggle esclusivo della classe .on su tutte le sezioni.
 ───────────────────────────────────────────── */
 function showTab(t){
-  // Nasconde tutte le sezioni rimuovendo .on
+  // Rimuove .on da TUTTE le sezioni, poi lo aggiunge solo a quella attiva
   ['dashboard','bandi','shortlist'].forEach(s => {
     document.getElementById('sec-'+s).classList.toggle('on', s===t);
   });
