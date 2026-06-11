@@ -77,6 +77,8 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 /* DASH PANELS */
 .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;margin-bottom:24px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:16px 18px;box-shadow:var(--shadow)}
+.panel.clickable{cursor:pointer;transition:.15s}
+.panel.clickable:hover{transform:translateY(-2px);box-shadow:0 4px 18px rgba(0,0,0,.1);border-color:var(--green)}
 .panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2);margin-bottom:12px}
 .bar{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12.5px}
 .bar .lab{width:150px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
@@ -85,7 +87,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .bar.b2 .fl{background:var(--blue)} .bar.b3 .fl{background:var(--teal)}
 .bar .n{width:46px;text-align:right;font-weight:600;font-size:12px}
 
-/* ── SOURCE SWITCHER (filtro padre) ── */
+/* SOURCE SWITCHER */
 .source-switcher{
   display:flex;gap:8px;align-items:center;
   background:var(--card);border:1px solid var(--line);border-radius:11px;
@@ -119,7 +121,6 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin:10px 0 14px;box-shadow:var(--shadow)}
 .toolbar select{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:#fff;color:var(--ink)}
 .toolbar label{font-size:11px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
-/* Search box — FUORI dal re-render, fix focus */
 .search-wrap{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-3);min-width:220px}
 .search-wrap input[type=text]{
   border:1px solid var(--line);border-radius:7px;padding:7px 9px;
@@ -127,7 +128,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
   outline:none;transition:.15s;
 }
 .search-wrap input[type=text]:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(134,188,37,.15)}
-.chipline{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
+.chipline{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0;align-items:center}
 .fchip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 13px;font-size:12px;color:var(--ink-2);cursor:pointer;transition:.12s}
 .fchip:hover{border-color:var(--ink-2)}
 .fchip.on{background:#000;color:#fff;border-color:#000}
@@ -153,7 +154,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .b-eu-portal{background:#cce4f4;color:#004b8d;font-size:10px}
 .b-fonte-eu{background:#004b8d;color:#fff}
 .b-fonte-it{background:var(--green-dark);color:#fff}
-.score{margin-left:auto;font-size:12px;font-weight:700;border-radius:14px;padding:3px 11px;cursor:help}
+.score{margin-left:auto;font-size:12px;font-weight:700;border-radius:14px;padding:3px 11px;cursor:help;white-space:nowrap}
 .s-in{background:var(--green);color:#000}
 .s-val{background:var(--amber);color:#fff}
 .s-out{background:#ddd;color:#666}
@@ -171,6 +172,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .chip{background:#f0f2ec;border-radius:6px;padding:3px 9px;font-size:11.5px;color:var(--ink-2)}
 .chip.alt{background:#e2f0f7;color:#004b8d}
 .result-count{font-size:12.5px;color:var(--ink-3);margin:10px 0 14px;font-weight:600}
+.card-concedente{font-size:11.5px;color:var(--ink-3);margin-top:-4px}
 
 /* SHORTLIST */
 .team-tabs{display:flex;gap:8px;margin-bottom:18px}
@@ -198,7 +200,6 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .pager button.on{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
 .pager button:disabled{opacity:.4;cursor:default}
 
-/* FIX #3 — SECTIONS gestite SOLO via classe .on, MAI via inline style */
 .section{display:none;padding:22px 0 40px}
 .section.on{display:block}
 
@@ -212,12 +213,8 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .modal-body{font-size:13.5px;color:var(--ink-2);line-height:1.6;white-space:pre-wrap}
 .modal-section{margin-top:16px}
 .modal-section h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3);margin-bottom:8px}
-
-/* NOTA TEXTAREA */
 .nota-area{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;margin-top:6px}
 .nota-area:focus{outline:none;border-color:var(--green)}
-
-/* SCORE BADGE — stili extra per scoring automatico */
 .score-auto{font-size:10px;opacity:.75;margin-left:3px}
 </style>
 </head>
@@ -246,7 +243,6 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
       </div>
     </div>
     <nav class="tabs">
-      <!-- FIX #2: Dashboard come prima tab attiva (landing page) -->
       <button class="on" onclick="showTab('dashboard')">📊 Dashboard</button>
       <button onclick="showTab('bandi')">📋 Bandi <span class="cnt" id="cnt-bandi-tab">0</span></button>
       <button onclick="showTab('shortlist')">⭐ Shortlist <span class="cnt" id="cnt-short-tab">0</span></button>
@@ -257,18 +253,15 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 <main>
   <div class="wrap">
 
-    <!-- ═══════════════════ SEZIONE DASHBOARD (landing) ═══════════════════ -->
-    <!-- FIX #2: sec-dashboard ha classe .on all'avvio — è la landing page -->
+    <!-- DASHBOARD -->
     <div class="section on" id="sec-dashboard">
       <div style="margin:20px 0 16px"><h2 style="font-size:17px">📊 Dashboard</h2></div>
       <div class="kpis" id="kpi-row"></div>
       <div class="panels" id="dash-panels"></div>
     </div>
 
-    <!-- ═══════════════════ SEZIONE BANDI ═══════════════════ -->
+    <!-- BANDI -->
     <div class="section" id="sec-bandi">
-
-      <!-- FILTRO PADRE: scelta fonte -->
       <div class="source-switcher">
         <span class="src-label">📡 Fonte:</span>
         <button class="src-btn on-all" id="sbtn-all" onclick="setSource('all')">
@@ -282,13 +275,11 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
         </button>
       </div>
 
-      <!-- TOOLBAR FILTRI (search FUORI dal re-render) -->
       <div class="toolbar" id="toolbar-bandi">
         <div class="search-wrap">
           🔍 Cerca
           <input type="text" id="search-bandi" placeholder="Titolo o descrizione…" oninput="applyFilters()" autocomplete="off">
         </div>
-
         <label>Stato
           <select id="sel-stato" onchange="applyFilters()">
             <option value="">Tutti gli stati</option>
@@ -297,28 +288,25 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
             <option value="scaduto">⏱ Scaduto / Chiuso</option>
           </select>
         </label>
-
         <label id="filtro-regione-wrap">Regione
           <select id="sel-regione" onchange="applyFilters()">
             <option value="">Tutte</option>
           </select>
         </label>
-
         <label id="filtro-tipo-wrap">Tipo
           <select id="sel-tipo" onchange="applyFilters()">
             <option value="">Tutti</option>
           </select>
         </label>
-
         <button class="btn light" onclick="resetFilters()">↺ Reset</button>
       </div>
 
-      <!-- Chip filtri rapidi score (solo MIMIT) -->
+      <!-- FIX #1: chip score visibili per TUTTE le fonti (con logica EU separata) -->
       <div class="chipline" id="chip-score-wrap">
-        <span style="font-size:11px;color:var(--ink-3);align-self:center">Score:</span>
-        <span class="fchip t-in" id="chip-in" onclick="toggleChip('in')">In target</span>
-        <span class="fchip t-val" id="chip-val" onclick="toggleChip('val')">Da valutare</span>
-        <span class="fchip t-out" id="chip-out" onclick="toggleChip('out')">Fuori target</span>
+        <span style="font-size:11px;color:var(--ink-3)">Score:</span>
+        <span class="fchip t-in" id="chip-in" onclick="toggleChip('in')">🎯 In target</span>
+        <span class="fchip t-val" id="chip-val" onclick="toggleChip('val')">🔶 Da valutare</span>
+        <span class="fchip t-out" id="chip-out" onclick="toggleChip('out')">⬜ Fuori target</span>
       </div>
 
       <div class="result-count" id="result-count"></div>
@@ -326,7 +314,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
       <div class="pager" id="pager-bandi"></div>
     </div>
 
-    <!-- ═══════════════════ SEZIONE SHORTLIST ═══════════════════ -->
+    <!-- SHORTLIST -->
     <div class="section" id="sec-shortlist">
       <div style="margin:18px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <h2 style="font-size:17px">⭐ Shortlist Team</h2>
@@ -342,7 +330,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
   </div>
 </main>
 
-<!-- MODAL DETTAGLIO -->
+<!-- MODAL -->
 <div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
   <div class="modal" id="modal-inner">
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -351,13 +339,10 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 </div>
 
 <script>
-/* ─────────────────────────────────────────────
-   CONFIG SUPABASE
-───────────────────────────────────────────── */
-const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
-const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
+/* CONFIG SUPABASE */
+const SB_URL = 'https://ncfpbqoforedqwzgsqql.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
 
-/* Paginazione automatica — carica TUTTE le righe superando il limite 1000 */
 async function sbFetch(table, params=''){
   const PAGE = 1000;
   let all = [], offset = 0, done = false;
@@ -365,8 +350,7 @@ async function sbFetch(table, params=''){
     const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}&limit=${PAGE}&offset=${offset}`, {
       headers:{
         'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,
-        'Accept':'application/json',
-        'Prefer':'count=exact'
+        'Accept':'application/json','Prefer':'count=exact'
       }
     });
     if(!r.ok) throw new Error(await r.text());
@@ -378,9 +362,7 @@ async function sbFetch(table, params=''){
   return all;
 }
 
-/* ─────────────────────────────────────────────
-   STATO GLOBALE
-───────────────────────────────────────────── */
+/* STATO GLOBALE */
 let allMimit      = [];
 let allEu         = [];
 let teamState     = {};
@@ -392,7 +374,8 @@ let lastFiltered  = [];
 let activeTeamTab = 'shortlist';
 
 /* ─────────────────────────────────────────────
-   FIX #1 — SCORING AUTOMATICO
+   FIX #2: SCORING UNIVERSALE (funziona per MIMIT e EU)
+   Per EU usa status + budget + settori disponibili
 ───────────────────────────────────────────── */
 function scoreItem(item){
   const ts  = teamState[item.id];
@@ -402,37 +385,52 @@ function scoreItem(item){
 
   if(ts && ts.shortlist) return 'in';
   if(ts && ts.excluded)  return 'out';
-
-  if(ch && ch < now) return 'out';
+  if(ch && ch < now)     return 'out';
 
   let score = 0;
+  const isEu = item._src === 'eu';
 
-  const bud = Number(item.agev_max || item.budget || 0);
-  if(bud >= 500000)  score += 3;
-  else if(bud >= 100000) score += 2;
-  else if(bud >= 10000)  score += 1;
-  else if(bud > 0 && bud < 5000) score -= 2;
+  if(isEu){
+    // Score per bandi EU
+    const s = (item.status||'').toLowerCase();
+    if(s === 'open') score += 3;
+    else if(s === 'forthcoming') score += 1;
+    const bud = Number(item.budget || 0);
+    if(bud >= 1000000) score += 3;
+    else if(bud >= 100000) score += 2;
+    else if(bud > 0) score += 1;
+    const sett = Array.isArray(item.settori) ? item.settori : [];
+    if(sett.length >= 2) score += 2;
+    else if(sett.length > 0) score += 1;
+    if(item.programma) score += 1;
+  } else {
+    // Score per bandi MIMIT
+    const bud = Number(item.agev_max || item.budget || 0);
+    if(bud >= 500000)      score += 3;
+    else if(bud >= 100000) score += 2;
+    else if(bud >= 10000)  score += 1;
+    else if(bud > 0 && bud < 5000) score -= 2;
 
-  const sett = Array.isArray(item.settori) ? item.settori : [];
-  if(sett.length >= 3) score += 2;
-  else if(sett.length > 0) score += 1;
+    const sett = Array.isArray(item.settori) ? item.settori : [];
+    if(sett.length >= 3) score += 2;
+    else if(sett.length > 0) score += 1;
 
-  const isAperto = (!ap || ap <= now) && (!ch || ch >= now);
-  if(isAperto) score += 1;
+    const isAperto = (!ap || ap <= now) && (!ch || ch >= now);
+    if(isAperto) score += 1;
 
-  const forme = Array.isArray(item.forme) ? item.forme : [];
-  if(forme.length > 0) score += 1;
+    const forme = Array.isArray(item.forme) ? item.forme : [];
+    if(forme.length > 0) score += 1;
 
-  if((item.titolo||'').toUpperCase().includes('PNRR')) score += 1;
+    // FIX #10: usa campo pnrr booleano, non solo il titolo
+    if(item.pnrr === true || item.pnrr === 1 || (item.titolo||'').toUpperCase().includes('PNRR')) score += 1;
+  }
 
   if(score >= 5) return 'in';
   if(score <= 0) return 'out';
   return 'val';
 }
 
-/* ─────────────────────────────────────────────
-   BOOT
-───────────────────────────────────────────── */
+/* BOOT */
 document.addEventListener('DOMContentLoaded', async () => {
   setSyncState('loading','Caricamento…');
   try {
@@ -456,7 +454,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateRegioneSelect();
     populateTipoSelect();
     applyFilters();
-
     renderDashboard();
 
     setSyncState('ok', `Aggiornato · ${allMimit.length} MIMIT + ${allEu.length} EU`);
@@ -474,12 +471,9 @@ function setSyncState(state, msg){
   txt.textContent = msg;
 }
 
-/* ─────────────────────────────────────────────
-   SOURCE SWITCHER — FILTRO PADRE
-───────────────────────────────────────────── */
+/* SOURCE SWITCHER */
 function setSource(src){
   activeSource = src;
-
   ['all','mimit','eu'].forEach(s => {
     const b = document.getElementById('sbtn-'+s);
     b.className = 'src-btn' + (s===src ? (s==='all' ? ' on-all' : s==='mimit' ? ' on-it' : ' on-eu') : '');
@@ -488,16 +482,14 @@ function setSource(src){
   const regWrap = document.getElementById('filtro-regione-wrap');
   regWrap.style.display = (src === 'eu') ? 'none' : '';
 
-  const chipWrap = document.getElementById('chip-score-wrap');
-  chipWrap.style.display = (src === 'eu') ? 'none' : '';
+  // FIX #1: i chip score rimangono sempre visibili, per tutte le fonti
+  // (vengono applicati anche ai bandi EU con la nuova scoreItem universale)
 
   const tipoLabel = document.querySelector('#filtro-tipo-wrap');
   if(tipoLabel) tipoLabel.childNodes[0].textContent = (src === 'eu') ? 'Programma' : 'Tipo';
 
   if(src === 'eu'){
     document.getElementById('sel-regione').value = '';
-    activeChips.clear();
-    renderChips();
   }
 
   populateTipoSelect();
@@ -505,14 +497,11 @@ function setSource(src){
   applyFilters();
 }
 
-/* ─────────────────────────────────────────────
-   POPOLA SELECTS DINAMICI
-───────────────────────────────────────────── */
+/* SELECTS DINAMICI */
 function populateRegioneSelect(){
   const all = new Set();
   allMimit.forEach(i => {
-    const regs = Array.isArray(i.regioni) ? i.regioni : [];
-    regs.forEach(r => { if(r) all.add(r); });
+    (Array.isArray(i.regioni)?i.regioni:[]).forEach(r => { if(r) all.add(r); });
   });
   const sel = document.getElementById('sel-regione');
   const cur = sel.value;
@@ -529,7 +518,6 @@ function populateTipoSelect(){
   const sel = document.getElementById('sel-tipo');
   const cur = sel.value;
   sel.innerHTML = '<option value="">Tutti</option>';
-
   if(activeSource === 'eu'){
     const progs = new Set();
     allEu.forEach(i => { if(i.programma) progs.add(i.programma); });
@@ -541,7 +529,7 @@ function populateTipoSelect(){
   } else {
     const forme = new Set();
     allMimit.forEach(i => {
-      (Array.isArray(i.forme) ? i.forme : []).forEach(f => { if(f) forme.add(f); });
+      (Array.isArray(i.forme)?i.forme:[]).forEach(f => { if(f) forme.add(f); });
     });
     [...forme].sort().forEach(f => {
       const o = document.createElement('option');
@@ -552,9 +540,7 @@ function populateTipoSelect(){
   sel.value = (sel.querySelector(`option[value="${cur}"]`)) ? cur : '';
 }
 
-/* ─────────────────────────────────────────────
-   CHIP SCORE
-───────────────────────────────────────────── */
+/* CHIP SCORE */
 function toggleChip(c){
   if(activeChips.has(c)) activeChips.delete(c);
   else activeChips.add(c);
@@ -570,9 +556,7 @@ function renderChips(){
   });
 }
 
-/* ─────────────────────────────────────────────
-   FILTRI PRINCIPALI
-───────────────────────────────────────────── */
+/* FILTRI */
 function applyFilters(){
   const q       = (document.getElementById('search-bandi').value || '').toLowerCase().trim();
   const stato   = document.getElementById('sel-stato').value;
@@ -590,41 +574,37 @@ function applyFilters(){
       const hay = ((item.titolo||'')+(item.desc_||'')+(item.summary||'')+(item.description||'')).toLowerCase();
       if(!hay.includes(q)) return false;
     }
-
     if(stato){
       const ap = item.apertura ? new Date(item.apertura) : null;
       const ch = item.chiusura ? new Date(item.chiusura) : null;
       const euStatus = (item.status||'').toLowerCase().trim();
       if(item._src === 'eu'){
-        if(stato==='aperto'  && !(euStatus==='open'  || euStatus==='aperto')) return false;
-        if(stato==='futuro'  && !(euStatus==='forthcoming' || euStatus==='futuro' || euStatus==='in attivazione')) return false;
-        if(stato==='scaduto' && !(euStatus==='closed'|| euStatus==='chiuso' || euStatus==='scaduto' || (ch && ch < now))) return false;
+        if(stato==='aperto'  && !(euStatus==='open'||euStatus==='aperto')) return false;
+        if(stato==='futuro'  && !(euStatus==='forthcoming'||euStatus==='futuro'||euStatus==='in attivazione')) return false;
+        if(stato==='scaduto' && !(euStatus==='closed'||euStatus==='chiuso'||euStatus==='scaduto'||(ch&&ch<now))) return false;
       } else {
-        if(stato==='aperto'  && !((!ap||ap<=now) && (!ch||ch>=now))) return false;
-        if(stato==='scaduto' && !(ch && ch < now)) return false;
-        if(stato==='futuro'  && !(ap && ap > now)) return false;
+        if(stato==='aperto'  && !((!ap||ap<=now)&&(!ch||ch>=now))) return false;
+        if(stato==='scaduto' && !(ch&&ch<now)) return false;
+        if(stato==='futuro'  && !(ap&&ap>now)) return false;
       }
     }
-
     if(regione && item._src === 'mimit'){
-      const regs = Array.isArray(item.regioni) ? item.regioni : [];
+      const regs = Array.isArray(item.regioni)?item.regioni:[];
       if(!regs.includes(regione)) return false;
     }
-
     if(tipo){
       if(item._src === 'eu'){
         if(item.programma !== tipo) return false;
       } else {
-        const ff = Array.isArray(item.forme) ? item.forme : [];
+        const ff = Array.isArray(item.forme)?item.forme:[];
         if(!ff.includes(tipo)) return false;
       }
     }
-
-    if(activeChips.size > 0 && item._src === 'mimit'){
+    // FIX #1: chip score attivi per TUTTE le fonti (scoreItem ora funziona per EU)
+    if(activeChips.size > 0){
       const sc = scoreItem(item);
       if(!activeChips.has(sc)) return false;
     }
-
     return true;
   });
 
@@ -646,9 +626,7 @@ function resetFilters(){
   applyFilters();
 }
 
-/* ─────────────────────────────────────────────
-   RENDER CARDS
-───────────────────────────────────────────── */
+/* RENDER CARDS */
 function renderPage(page){
   currentPage = page;
   const start = (page-1)*PAGE_SIZE;
@@ -658,12 +636,13 @@ function renderPage(page){
 }
 
 function buildCard(item){
-  const isEu   = item._src === 'eu';
-  const now    = new Date();
-  const ap     = item.apertura ? new Date(item.apertura) : null;
-  const ch     = item.chiusura ? new Date(item.chiusura) : null;
-  const ts     = teamState[item.id] || {};
+  const isEu = item._src === 'eu';
+  const now  = new Date();
+  const ap   = item.apertura ? new Date(item.apertura) : null;
+  const ch   = item.chiusura ? new Date(item.chiusura) : null;
+  const ts   = teamState[item.id] || {};
 
+  // Stato badge
   let statoBadge = '';
   if(isEu){
     const s = (item.status||'').toLowerCase();
@@ -678,27 +657,59 @@ function buildCard(item){
     else statoBadge = '<span class="badge b-attivo">Aperto</span>';
   }
 
+  // Fonte badge
   const fonteBadge = isEu
     ? '<span class="badge b-eu-portal">🇪🇺 EU Portal</span>'
     : '<span class="badge b-naz">🇮🇹 MIMIT</span>';
 
-  let scoreHtml = '';
+  // FIX #10 + #11: badge PNRR e UE letti dai campi booleani reali da Supabase
+  let pnrrBadge = '';
+  let ueBadge   = '';
   if(!isEu){
-    const sc  = scoreItem(item);
-    const cls = sc==='in'?'s-in':sc==='val'?'s-val':'s-out';
-    const lab = sc==='in'?'In target':sc==='val'?'Da valutare':'Fuori target';
-    const ts2 = teamState[item.id];
-    const isManual = ts2 && (ts2.shortlist || ts2.excluded);
-    const autoTag = isManual ? '' : '<span class="score-auto">(auto)</span>';
-    scoreHtml = `<span class="score ${cls}" title="${lab} — ${isManual?'Classificazione manuale':'Score automatico basato su budget, settori e stato apertura'}">${lab}${autoTag}</span>`;
+    if(item.pnrr === true || item.pnrr === 1){
+      pnrrBadge = '<span class="badge b-pnrr">PNRR</span>';
+    }
+    if(item.ue === true || item.ue === 1){
+      ueBadge = '<span class="badge b-ue">🇪🇺 UE</span>';
+    }
+    // Fallback: se il campo non è booleano ma il titolo lo contiene
+    if(!pnrrBadge && (item.titolo||'').toUpperCase().includes('PNRR')){
+      pnrrBadge = '<span class="badge b-pnrr">PNRR</span>';
+    }
   }
+
+  // FIX #2: score universale (MIMIT + EU)
+  const sc  = scoreItem(item);
+  const cls = sc==='in'?'s-in':sc==='val'?'s-val':'s-out';
+  const lab = sc==='in'?'In target':sc==='val'?'Da valutare':'Fuori target';
+  const ts2 = teamState[item.id];
+  const isManual = ts2 && (ts2.shortlist || ts2.excluded);
+  // FIX #13: tag (auto) chiaramente visibile
+  const autoTag = isManual ? ' <span class="score-auto" title="Classificazione manuale">(✋)</span>' : ' <span class="score-auto" title="Score automatico">(auto)</span>';
+  const scoreHtml = `<span class="score ${cls}" title="${lab} — ${isManual?'Classificazione manuale':'Score automatico'}">${lab}${autoTag}</span>`;
 
   const fmtDate = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 
+  // FIX #15: concedente nelle card
+  const concHtml = item.concedente
+    ? `<div class="card-concedente">🏛 ${escHtml(item.concedente)}</div>`
+    : '';
+
+  // Settori chips
   let chipsHtml = '';
   const sett = Array.isArray(item.settori) ? item.settori.slice(0,3) : [];
   if(sett.length){
     chipsHtml = '<div class="chips">'+sett.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')+'</div>';
+  }
+
+  // FIX #7 + #8: dimensioni e tipologie nelle card
+  const dim = Array.isArray(item.dimensioni) ? item.dimensioni.slice(0,2) : (item.dimensioni ? [item.dimensioni] : []);
+  const tip = Array.isArray(item.tipologie) ? item.tipologie.slice(0,2) : (item.tipologie ? [item.tipologie] : []);
+  let dimTipHtml = '';
+  if(dim.length || tip.length){
+    const dimChips = dim.map(d=>`<span class="chip" style="background:#fef9e7;color:#7d6608">${escHtml(d)}</span>`).join('');
+    const tipChips = tip.map(t=>`<span class="chip" style="background:#f0f8f0;color:#1e6e1e">${escHtml(t)}</span>`).join('');
+    dimTipHtml = `<div class="chips">${dimChips}${tipChips}</div>`;
   }
 
   const descText = item.desc_ || item.summary || item.description || '';
@@ -711,8 +722,10 @@ function buildCard(item){
     extraHtml = `<div class="meta-rows"><span>📁 <b>Programma:</b> ${escHtml(item.programma)}</span></div>`;
   }
 
-  const budget = item.budget ? '€ '+fmtNum(item.budget) : null;
-  const agev   = item.agev_max ? '€ '+fmtNum(item.agev_max) : null;
+  // FIX #5: mostra spesa_max se presente
+  const budget   = item.budget    ? '€ '+fmtNum(item.budget)    : null;
+  const agev     = item.agev_max  ? '€ '+fmtNum(item.agev_max)  : null;
+  const spesaMax = item.spesa_max ? '€ '+fmtNum(item.spesa_max) : null;
 
   const isIn  = ts.shortlist;
   const isOut = ts.excluded;
@@ -721,24 +734,26 @@ function buildCard(item){
   const actLink  = item.link ? `<a class="btn-link" href="${escHtml(item.link)}" target="_blank" rel="noopener">🔗 Apri</a>` : '';
   const actDet   = `<button onclick="openModal('${item.id}','${item._src}')" style="margin-left:auto">📄 Dettaglio</button>`;
 
-  return `<div class="card${isEu?' is-eu':''}${isOut?' excluded':''}">
-  <div class="badges">${fonteBadge}${statoBadge}${scoreHtml}</div>
-  <h4><a href="${item.link?escHtml(item.link):'#'}" target="_blank" rel="noopener">${escHtml(item.titolo||'Senza titolo')}</a></h4>
-  ${descHtml}
-  ${(budget||agev) ? `<div class="nums">
+  const numsHtml = (budget||agev||spesaMax) ? `<div class="nums">
     <div><div class="nv">${budget||'—'}</div><div class="nl">Budget</div></div>
-    <div><div class="nv">${agev||'—'}</div><div class="nl">Agev. max</div></div>
+    <div><div class="nv">${agev||spesaMax||'—'}</div><div class="nl">${agev?'Agev. max':'Spesa max'}</div></div>
     <div><div class="nv">${fmtDate(ch)}</div><div class="nl">Scadenza</div></div>
-  </div>` : `<div class="meta-rows"><span>📅 Scadenza: <b>${fmtDate(ch)}</b></span></div>`}
+  </div>` : `<div class="meta-rows"><span>📅 Scadenza: <b>${fmtDate(ch)}</b></span></div>`;
+
+  return `<div class="card${isEu?' is-eu':''}${isOut?' excluded':''}">
+  <div class="badges">${fonteBadge}${statoBadge}${pnrrBadge}${ueBadge}${scoreHtml}</div>
+  <h4><a href="${item.link?escHtml(item.link):'#'}" target="_blank" rel="noopener">${escHtml(item.titolo||'Senza titolo')}</a></h4>
+  ${concHtml}
+  ${descHtml}
+  ${numsHtml}
   ${extraHtml}
   ${chipsHtml}
+  ${dimTipHtml}
   <div class="card-actions">${actShort}${actExcl}${actLink}${actDet}</div>
 </div>`;
 }
 
-/* ─────────────────────────────────────────────
-   PAGER
-───────────────────────────────────────────── */
+/* PAGER */
 function renderPager(total){
   const pages = Math.ceil(total/PAGE_SIZE);
   const pg    = document.getElementById('pager-bandi');
@@ -765,9 +780,7 @@ function goPage(p){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ─────────────────────────────────────────────
-   SHORTLIST / EXCLUDED
-───────────────────────────────────────────── */
+/* SHORTLIST / EXCLUDED */
 async function toggleShortlist(id, src, btn){
   const ts   = teamState[id] || {};
   const newV = !ts.shortlist;
@@ -802,9 +815,7 @@ function updateShortCount(){
   if(document.getElementById('sec-shortlist').classList.contains('on')) renderShortlist();
 }
 
-/* ─────────────────────────────────────────────
-   SHORTLIST PAGE
-───────────────────────────────────────────── */
+/* SHORTLIST PAGE */
 function setTeamTab(t){
   activeTeamTab = t;
   document.querySelectorAll('.team-tab').forEach((b,i)=>b.classList.toggle('on',['shortlist','excluded'][i]===t));
@@ -822,29 +833,26 @@ function renderShortlist(){
   document.getElementById('shortlist-grid').innerHTML = items.map(i=>buildCard(i)).join('');
 }
 
-/* ─────────────────────────────────────────────
-   DASHBOARD
-───────────────────────────────────────────── */
+/* DASHBOARD */
 function renderDashboard(){
-  const now  = new Date();
-  const all  = [...allMimit, ...allEu];
-  const aperti  = all.filter(i => {
+  const now = new Date();
+  const all = [...allMimit, ...allEu];
+  const aperti = all.filter(i => {
     const ch = i.chiusura ? new Date(i.chiusura) : null;
     const ap = i.apertura ? new Date(i.apertura) : null;
     if(i._src==='eu') return (i.status||'').toLowerCase()==='open';
     return (!ap||ap<=now)&&(!ch||ch>=now);
   });
-  const shortN  = Object.values(teamState).filter(t=>t.shortlist).length;
-
-  const inTargetN = allMimit.filter(i => scoreItem(i) === 'in').length;
+  const shortN    = Object.values(teamState).filter(t=>t.shortlist).length;
+  const inTargetN = all.filter(i => scoreItem(i) === 'in').length;
 
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi gr"><div class="v">${all.length}</div><div class="l">Totale bandi</div></div>
-    <div class="kpi bl"><div class="v">${allMimit.length}</div><div class="l">MIMIT</div></div>
-    <div class="kpi tl"><div class="v">${allEu.length}</div><div class="l">EU Portal</div></div>
-    <div class="kpi am"><div class="v">${aperti.length}</div><div class="l">Aperti ora</div></div>
-    <div class="kpi gr" style="cursor:pointer" onclick="goToBandiFiltered('in')" title="Clicca per vedere i bandi in target"><div class="v">${inTargetN}</div><div class="l">In target 🎯</div></div>
-    <div class="kpi rd"><div class="v">${shortN}</div><div class="l">In shortlist</div></div>
+    <div class="kpi bl" onclick="showTab('bandi');setSource('mimit')" title="Vai ai bandi MIMIT"><div class="v">${allMimit.length}</div><div class="l">MIMIT</div></div>
+    <div class="kpi tl" onclick="showTab('bandi');setSource('eu')" title="Vai ai bandi EU"><div class="v">${allEu.length}</div><div class="l">EU Portal</div></div>
+    <div class="kpi am" onclick="showTab('bandi');document.getElementById('sel-stato').value='aperto';applyFilters()" title="Filtra aperti"><div class="v">${aperti.length}</div><div class="l">Aperti ora</div></div>
+    <div class="kpi gr" onclick="goToBandiFiltered('in')" title="Clicca per vedere i bandi in target"><div class="v">${inTargetN}</div><div class="l">In target 🎯</div></div>
+    <div class="kpi rd" onclick="showTab('shortlist')" title="Vai alla shortlist"><div class="v">${shortN}</div><div class="l">In shortlist</div></div>
   `;
 
   const regCount = {};
@@ -876,7 +884,8 @@ function renderDashboard(){
   });
 
   const scoreDist = {in:0, val:0, out:0};
-  allMimit.forEach(i => { scoreDist[scoreItem(i)]++; });
+  // FIX #2: score distribution per TUTTI i bandi (non solo MIMIT)
+  all.forEach(i => { scoreDist[scoreItem(i)]++; });
   const maxSc = Math.max(...Object.values(scoreDist), 1);
 
   document.getElementById('dash-panels').innerHTML = `
@@ -901,18 +910,20 @@ function renderDashboard(){
       ${topEuStati.map(([s,n])=>`<div class="bar b3"><span class="lab">${escHtml(s)}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxES*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
       ${topEuStati.length===0?'<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>':''}
     </div>
-    <div class="panel">
-      <h3>🎯 Score MIMIT (automatico)</h3>
+    <div class="panel clickable" onclick="goToBandiFiltered('in')" title="Clicca per filtrare i bandi In target">
+      <h3>🎯 Score (tutti i bandi) — clicca per filtrare</h3>
       <div class="bar"><span class="lab">✅ In target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.in/maxSc*100)}%;background:var(--green)"></span></span><span class="n">${scoreDist.in}</span></div>
       <div class="bar"><span class="lab">🔶 Da valutare</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.val/maxSc*100)}%;background:var(--amber)"></span></span><span class="n">${scoreDist.val}</span></div>
       <div class="bar"><span class="lab">⬜ Fuori target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.out/maxSc*100)}%;background:#bbb"></span></span><span class="n">${scoreDist.out}</span></div>
-      <p style="font-size:11px;color:var(--ink-3);margin-top:10px">Criteri: budget disponibile, settori coperti, stato apertura, forma agevolazione, PNRR</p>
+      <p style="font-size:11px;color:var(--ink-3);margin-top:10px">Criteri: budget, settori, stato apertura, forma agevolazione, PNRR/UE flag</p>
     </div>
   `;
 }
 
+/* FIX #3: KPI "In target" porta alla tab bandi con chip attivo */
 function goToBandiFiltered(chip){
   showTab('bandi');
+  setSource('all');
   activeChips.clear();
   activeChips.add(chip);
   renderChips();
@@ -931,37 +942,57 @@ function showTab(t){
   if(t==='dashboard') renderDashboard();
 }
 
-/* ─────────────────────────────────────────────
-   MODAL DETTAGLIO
-───────────────────────────────────────────── */
+/* MODAL DETTAGLIO — FIX #4,5,6,7,8,9,12,15 */
 function openModal(id, src){
   const item = (src==='eu' ? allEu : allMimit).find(i=>String(i.id)===String(id));
   if(!item) return;
+  // FIX #12: ricarica la nota da teamState (già aggiornato da upsert)
   const ts  = teamState[id] || {};
   const now = new Date();
   const ch  = item.chiusura ? new Date(item.chiusura) : null;
   const ap  = item.apertura ? new Date(item.apertura) : null;
   const fmt = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}) : '—';
 
+  // FIX #4: colonne nazionale, pnrr, ue mostrate nel modal
+  const pnrrVal = item.pnrr === true || item.pnrr === 1 ? '✅ Sì' : (item.pnrr === false || item.pnrr === 0 ? '—' : '');
+  const ueVal   = item.ue   === true || item.ue   === 1 ? '✅ Sì' : (item.ue   === false || item.ue   === 0 ? '—' : '');
+  const nazVal  = item.nazionale === true || item.nazionale === 1 ? '✅ Sì' : '';
+
   const rows = [
     src==='eu' && item.programma ? ['Programma', item.programma] : null,
     src==='eu' && item.status    ? ['Stato EU', item.status]     : null,
     ['Apertura', fmt(ap)],
     ['Scadenza', fmt(ch)],
-    item.concedente ? ['Concedente', item.concedente] : null,
-    item.budget     ? ['Budget totale', '€ '+fmtNum(item.budget)] : null,
-    item.agev_max   ? ['Agev. massima', '€ '+fmtNum(item.agev_max)] : null,
-    item.normativa  ? ['Normativa', item.normativa] : null,
+    item.concedente   ? ['Concedente', item.concedente]     : null,
+    item.budget       ? ['Budget totale', '€ '+fmtNum(item.budget)] : null,
+    item.agev_max     ? ['Agev. massima', '€ '+fmtNum(item.agev_max)] : null,
+    // FIX #5: spesa_max nel modal
+    item.spesa_max    ? ['Spesa massima', '€ '+fmtNum(item.spesa_max)] : null,
+    item.normativa    ? ['Normativa', item.normativa] : null,
+    // FIX #4: badge nazionali/PNRR/UE reali
+    pnrrVal           ? ['PNRR', pnrrVal] : null,
+    ueVal             ? ['Co-finanziato UE', ueVal] : null,
+    nazVal            ? ['Nazionale', nazVal] : null,
   ].filter(Boolean);
 
-  const settori = Array.isArray(item.settori) ? item.settori : [];
-  const forme   = Array.isArray(item.forme)   ? item.forme   : [];
-  const regioni = Array.isArray(item.regioni) ? item.regioni : [];
+  const settori = Array.isArray(item.settori)   ? item.settori   : [];
+  const forme   = Array.isArray(item.forme)     ? item.forme     : [];
+  const regioni = Array.isArray(item.regioni)   ? item.regioni   : [];
+  // FIX #7 + #8: dimensioni e tipologie nel modal
+  const dim     = Array.isArray(item.dimensioni)? item.dimensioni: (item.dimensioni ? [item.dimensioni] : []);
+  const tip     = Array.isArray(item.tipologie) ? item.tipologie : (item.tipologie  ? [item.tipologie]  : []);
   const descModal = item.desc_ || item.summary || item.description || '';
+
+  // Score badge nel modal
+  const sc  = scoreItem(item);
+  const cls = sc==='in'?'s-in':sc==='val'?'s-val':'s-out';
+  const lab = sc==='in'?'In target 🎯':sc==='val'?'Da valutare 🔶':'Fuori target ⬜';
+  const isManual = ts && (ts.shortlist || ts.excluded);
 
   document.getElementById('modal-content').innerHTML = `
     <div class="badges" style="margin-bottom:12px">
       ${src==='eu'?'<span class="badge b-eu-portal">🇪🇺 EU Portal</span>':'<span class="badge b-naz">🇮🇹 MIMIT</span>'}
+      <span class="score ${cls}">${lab}${isManual?' <span class="score-auto">(✋ manuale)</span>':' <span class="score-auto">(auto)</span>'}</span>
     </div>
     <h2>${escHtml(item.titolo||'Senza titolo')}</h2>
     <div class="modal-meta">
@@ -969,12 +1000,14 @@ function openModal(id, src){
     </div>
     ${descModal
       ? `<div class="modal-body">${escHtml(descModal)}</div>`
-      : (src==='eu'
-          ? '<div class="modal-body" style="color:#aaa;font-style:italic">Nessuna descrizione estesa disponibile nel portale EU per questo bando.</div>'
-          : '')}
+      : (src==='eu' ? '<div class="modal-body" style="color:#aaa;font-style:italic">Nessuna descrizione estesa disponibile.</div>' : '')}
     ${settori.length ? `<div class="modal-section"><h3>Settori</h3><div class="chips">${settori.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')}</div></div>` : ''}
     ${forme.length   ? `<div class="modal-section"><h3>Forme agevolazione</h3><div class="chips">${forme.map(f=>`<span class="chip">${escHtml(f)}</span>`).join('')}</div></div>` : ''}
     ${regioni.length ? `<div class="modal-section"><h3>Regioni</h3><div class="chips">${regioni.map(r=>`<span class="chip alt">${escHtml(r)}</span>`).join('')}</div></div>` : ''}
+    ${dim.length     ? `<div class="modal-section"><h3>Dimensioni aziendali</h3><div class="chips">${dim.map(d=>`<span class="chip" style="background:#fef9e7;color:#7d6608">${escHtml(d)}</span>`).join('')}</div></div>` : ''}
+    ${tip.length     ? `<div class="modal-section"><h3>Tipologie beneficiari</h3><div class="chips">${tip.map(t=>`<span class="chip" style="background:#f0f8f0;color:#1e6e1e">${escHtml(t)}</span>`).join('')}</div></div>` : ''}
+    ${item.obiettivi ? `<div class="modal-section"><h3>Obiettivi</h3><div class="modal-body" style="white-space:normal">${escHtml(item.obiettivi)}</div></div>` : ''}
+    ${item.note      ? `<div class="modal-section"><h3>📌 Note apertura/chiusura</h3><div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:13px;color:#92400e">${escHtml(item.note)}</div></div>` : ''}
     <div class="modal-section">
       <h3>Nota team</h3>
       <textarea class="nota-area" id="nota-input" placeholder="Aggiungi una nota interna…">${escHtml(ts.nota||'')}</textarea>
@@ -985,19 +1018,20 @@ function openModal(id, src){
   document.getElementById('modal-bg').classList.add('open');
 }
 
+/* FIX #12: saveNota aggiorna teamState e ricarica nel modal alla prossima apertura */
 async function saveNota(id){
   const nota = document.getElementById('nota-input').value;
   teamState[id] = {...(teamState[id]||{}), nota};
   await upsertTeamState(id);
-  alert('Nota salvata ✓');
+  // Feedback visivo senza alert
+  const btn = document.querySelector('#modal-content .btn.primary');
+  if(btn){ const orig = btn.textContent; btn.textContent = '✅ Salvato!'; setTimeout(()=>btn.textContent=orig, 1800); }
 }
 
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
 function closeModalBg(e){ if(e.target===document.getElementById('modal-bg')) closeModal(); }
 
-/* ─────────────────────────────────────────────
-   UTILS
-───────────────────────────────────────────── */
+/* UTILS */
 function fmtNum(n){ return Number(n).toLocaleString('it-IT'); }
 function escHtml(s){
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
