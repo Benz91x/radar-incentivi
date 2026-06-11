@@ -50,6 +50,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff}
 .loading-overlay.hidden{display:none}
 .loading-overlay .spin-big{width:48px;height:48px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--green);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
 .loading-overlay p{font-size:15px;color:#eee}
 .loading-overlay small{font-size:12px;color:#aaa}
 
@@ -107,39 +108,28 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
   border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;
   transition:.15s;
 }
-/* MIMIT attivo */
-.src-btn.on-it{
-  border-color:var(--green);background:#f0f7e6;color:var(--green-dark);
-}
+.src-btn.on-it{border-color:var(--green);background:#f0f7e6;color:var(--green-dark);}
 .src-btn.on-it .src-count{background:var(--green);color:#000;}
-/* EU attivo */
-.src-btn.on-eu{
-  border-color:var(--blue);background:#e3f2fa;color:#004b8d;
-}
+.src-btn.on-eu{border-color:var(--blue);background:#e3f2fa;color:#004b8d;}
 .src-btn.on-eu .src-count{background:var(--blue);color:#fff;}
-/* TUTTI attivo */
-.src-btn.on-all{
-  border-color:#555;background:#222;color:#fff;
-}
+.src-btn.on-all{border-color:#555;background:#222;color:#fff;}
 .src-btn.on-all .src-count{background:#555;color:#fff;}
 
-/* Banner fonte attiva */
-.fonte-banner{
-  display:flex;align-items:center;gap:10px;
-  border-radius:9px;padding:8px 14px;margin:10px 0 0;
-  font-size:12.5px;font-weight:600;
-}
-.fonte-banner.it{background:#f0f7e6;color:var(--green-dark);border:1px solid #c8e09a;}
-.fonte-banner.eu{background:#e3f2fa;color:#004b8d;border:1px solid #9dcfed;}
-.fonte-banner.all{background:#f5f5f5;color:var(--ink-2);border:1px solid var(--line);}
-
 /* TOOLBAR / FILTERS */
-.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin:10px 0 14px;box-shadow:var(--shadow)}
-.toolbar select,.toolbar input[type=search]{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:#fff;color:var(--ink)}
-.toolbar input[type=search]{min-width:220px;flex:1}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin:10px 0 14px;box-shadow:var(--shadow)}
+.toolbar select{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:12.5px;background:#fff;color:var(--ink)}
 .toolbar label{font-size:11px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
+/* Search box — FUORI dal re-render, fix focus */
+.search-wrap{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--ink-3);min-width:220px}
+.search-wrap input[type=text]{
+  border:1px solid var(--line);border-radius:7px;padding:7px 9px;
+  font-size:12.5px;background:#fff;color:var(--ink);width:100%;
+  outline:none;transition:.15s;
+}
+.search-wrap input[type=text]:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(134,188,37,.15)}
 .chipline{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
-.fchip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 13px;font-size:12px;color:var(--ink-2)}
+.fchip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 13px;font-size:12px;color:var(--ink-2);cursor:pointer;transition:.12s}
+.fchip:hover{border-color:var(--ink-2)}
 .fchip.on{background:#000;color:#fff;border-color:#000}
 .fchip.on.t-in{background:var(--green-dark);border-color:var(--green-dark)}
 .fchip.on.t-val{background:var(--amber);border-color:var(--amber)}
@@ -161,6 +151,8 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .b-ue{background:#e2f0f7;color:var(--blue)}
 .b-naz{background:#fff5d6;color:#9a6c00}
 .b-eu-portal{background:#cce4f4;color:#004b8d;font-size:10px}
+.b-fonte-eu{background:#004b8d;color:#fff}
+.b-fonte-it{background:var(--green-dark);color:#fff}
 .score{margin-left:auto;font-size:12px;font-weight:700;border-radius:14px;padding:3px 11px;cursor:help}
 .s-in{background:var(--green);color:#000}
 .s-val{background:var(--amber);color:#fff}
@@ -178,4 +170,750 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 .meta-rows b{color:var(--ink)}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
 .chip{background:#eef3e3;color:var(--green-dark);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600}
-.chip.alt{background:#f0f0f0;color:
+.chip.alt{background:#f0f0f0;color:#555}
+.chip.eu{background:#e2f0f7;color:var(--blue)}
+.card-actions{display:flex;gap:7px;margin-top:4px}
+.card-actions button{font-size:11.5px;border-radius:7px;padding:5px 12px;border:1px solid var(--line);background:#fff;color:var(--ink-2);transition:.12s}
+.card-actions button:hover{border-color:var(--green-dark);color:var(--green-dark)}
+.card-actions button.act-in{background:var(--green);border-color:var(--green);color:#000;font-weight:600}
+.card-actions button.act-ex{background:#f8f1f1;border-color:#e0b4b0;color:var(--red)}
+.card-actions a.btn-link{font-size:11.5px;border-radius:7px;padding:5px 12px;border:1px solid var(--line);background:#fff;color:var(--ink-2);text-decoration:none;transition:.12s;display:inline-flex;align-items:center;gap:5px}
+.card-actions a.btn-link:hover{border-color:var(--blue);color:var(--blue)}
+
+/* SHORTLIST / TEAM TABS */
+.team-tabs{display:flex;gap:6px;margin-bottom:14px}
+.team-tab{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 16px;font-size:13px;color:var(--ink-2);transition:.12s}
+.team-tab.on{background:#000;color:#fff;border-color:#000;font-weight:600}
+
+/* RESULT COUNT */
+.result-count{font-size:12px;color:var(--ink-3);margin-bottom:8px}
+
+/* PAGINATOR */
+.pager{display:flex;align-items:center;gap:6px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.pager button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;font-size:12.5px;color:var(--ink-2);transition:.12s}
+.pager button:hover{border-color:var(--green-dark);color:var(--green-dark)}
+.pager button.on{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
+.pager button:disabled{opacity:.4;cursor:default}
+
+/* SECTIONS */
+.section{display:none;padding:22px 0 40px}
+.section.on{display:block}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;overflow-y:auto}
+.modal-bg.open{display:flex;align-items:flex-start;justify-content:center;padding:40px 16px}
+.modal{background:var(--card);border-radius:14px;max-width:780px;width:100%;padding:28px;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:20px;color:var(--ink-3);cursor:pointer}
+.modal h2{font-size:18px;margin-bottom:12px;line-height:1.3}
+.modal-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.modal-body{font-size:13.5px;color:var(--ink-2);line-height:1.6;white-space:pre-wrap}
+.modal-section{margin-top:16px}
+.modal-section h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3);margin-bottom:8px}
+
+/* NOTA TEXTAREA */
+.nota-area{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;margin-top:6px}
+.nota-area:focus{outline:none;border-color:var(--green)}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spin-big"></div>
+  <p>Caricamento bandi…</p>
+  <small>Connessione a Supabase in corso</small>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="hd">
+      <div class="logo">
+        <span class="dot">●</span>
+        Radar Incentivi
+        <small>Innovation &amp; Ventures</small>
+      </div>
+      <div class="sp"></div>
+      <div class="hd meta" id="hd-meta">
+        <div class="sync-bar">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-txt">In attesa…</span>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="on" onclick="showTab('bandi')">📋 Bandi <span class="cnt" id="cnt-bandi-tab">0</span></button>
+      <button onclick="showTab('shortlist')">⭐ Shortlist <span class="cnt" id="cnt-short-tab">0</span></button>
+      <button onclick="showTab('dashboard')">📊 Dashboard</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- ═══════════════════ SEZIONE BANDI ═══════════════════ -->
+    <div class="section on" id="sec-bandi">
+
+      <!-- FILTRO PADRE: scelta fonte -->
+      <div class="source-switcher">
+        <span class="src-label">📡 Fonte:</span>
+        <button class="src-btn on-all" id="sbtn-all" onclick="setSource('all')">
+          Tutti <span class="src-count" id="cnt-all">0</span>
+        </button>
+        <button class="src-btn" id="sbtn-mimit" onclick="setSource('mimit')">
+          🇮🇹 MIMIT <span class="src-count" id="cnt-mimit">0</span>
+        </button>
+        <button class="src-btn" id="sbtn-eu" onclick="setSource('eu')">
+          🇪🇺 EU <span class="src-count" id="cnt-eu">0</span>
+        </button>
+      </div>
+
+      <!-- TOOLBAR FILTRI (search FUORI dal re-render) -->
+      <div class="toolbar" id="toolbar-bandi">
+        <!-- Search: rimane sempre nel DOM, non viene mai sovrascritto -->
+        <div class="search-wrap">
+          🔍 Cerca
+          <input type="text" id="search-bandi" placeholder="Titolo o descrizione…" oninput="applyFilters()" autocomplete="off">
+        </div>
+
+        <!-- Stato -->
+        <label>Stato
+          <select id="sel-stato" onchange="applyFilters()">
+            <option value="">Tutti</option>
+            <option value="aperto">✅ Aperto</option>
+            <option value="scaduto">⏱ Scaduto</option>
+            <option value="futuro">🔜 Futuro</option>
+          </select>
+        </label>
+
+        <!-- Regione — visibile solo per MIMIT/Tutti -->
+        <label id="filtro-regione-wrap">Regione
+          <select id="sel-regione" onchange="applyFilters()">
+            <option value="">Tutte</option>
+          </select>
+        </label>
+
+        <!-- Tipo agevolazione (per MIMIT) / Programma (per EU) -->
+        <label id="filtro-tipo-wrap">Tipo
+          <select id="sel-tipo" onchange="applyFilters()">
+            <option value="">Tutti</option>
+          </select>
+        </label>
+
+        <button class="btn light" onclick="resetFilters()">↺ Reset</button>
+      </div>
+
+      <!-- Chip filtri rapidi score (solo MIMIT) -->
+      <div class="chipline" id="chip-score-wrap">
+        <span style="font-size:11px;color:var(--ink-3);align-self:center">Score:</span>
+        <span class="fchip t-in" id="chip-in" onclick="toggleChip('in')">In target</span>
+        <span class="fchip t-val" id="chip-val" onclick="toggleChip('val')">Da valutare</span>
+        <span class="fchip t-out" id="chip-out" onclick="toggleChip('out')">Fuori target</span>
+      </div>
+
+      <div class="result-count" id="result-count"></div>
+      <div class="grid" id="bandi-grid"></div>
+      <div class="pager" id="pager-bandi"></div>
+    </div>
+
+    <!-- ═══════════════════ SEZIONE SHORTLIST ═══════════════════ -->
+    <div class="section" id="sec-shortlist">
+      <div style="margin:18px 0 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h2 style="font-size:17px">⭐ Shortlist Team</h2>
+      </div>
+      <div class="team-tabs">
+        <button class="team-tab on" onclick="setTeamTab('shortlist')">⭐ Shortlist</button>
+        <button class="team-tab" onclick="setTeamTab('excluded')">🚫 Esclusi</button>
+      </div>
+      <div class="grid" id="shortlist-grid"></div>
+      <div class="result-count" id="short-count"></div>
+    </div>
+
+    <!-- ═══════════════════ SEZIONE DASHBOARD ═══════════════════ -->
+    <div class="section" id="sec-dashboard">
+      <div style="margin:20px 0 16px"><h2 style="font-size:17px">📊 Dashboard</h2></div>
+      <div class="kpis" id="kpi-row"></div>
+      <div class="panels" id="dash-panels"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL DETTAGLIO -->
+<div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+  <div class="modal" id="modal-inner">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   CONFIG SUPABASE
+───────────────────────────────────────────── */
+const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzc3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1NzkzMjcsImV4cCI6MjA2NTE1NTMyN30.Wr1u46sFUKjUyv3UBKcI3UBKcI3HMJVhQz0RM2sFUKj';
+
+async function sbFetch(table, params=''){
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, {
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Accept':'application/json','Range':'0-9999'}
+  });
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* ─────────────────────────────────────────────
+   STATO GLOBALE
+───────────────────────────────────────────── */
+let allMimit      = [];   // tabella incentivi (MIMIT)
+let allEu         = [];   // tabella incentivi_eu
+let teamState     = {};   // { id_incentivo: {shortlist, excluded, nota} }
+let activeSource  = 'all'; // 'all' | 'mimit' | 'eu'
+let activeChips   = new Set();
+let currentPage   = 1;
+const PAGE_SIZE   = 30;
+let lastFiltered  = [];
+let activeTeamTab = 'shortlist';
+
+/* ─────────────────────────────────────────────
+   BOOT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+  setSyncState('loading','Caricamento…');
+  try {
+    const [mimitData, euData, tsData] = await Promise.all([
+      sbFetch('incentivi','select=*&order=chiusura.asc.nullslast'),
+      sbFetch('incentivi_eu','select=*&order=chiusura.asc.nullslast'),
+      sbFetch('team_state','select=*')
+    ]);
+
+    allMimit = mimitData.map(i => ({...i, _src:'mimit'}));
+    allEu    = euData.map(i   => ({...i, _src:'eu'}));
+
+    teamState = {};
+    tsData.forEach(r => { teamState[r.id_incentivo] = r; });
+
+    // Conta badge tab
+    document.getElementById('cnt-bandi-tab').textContent = allMimit.length + allEu.length;
+    document.getElementById('cnt-all').textContent   = allMimit.length + allEu.length;
+    document.getElementById('cnt-mimit').textContent = allMimit.length;
+    document.getElementById('cnt-eu').textContent    = allEu.length;
+
+    populateRegioneSelect();
+    applyFilters();
+    renderDashboard();
+
+    setSyncState('ok', `Aggiornato · ${allMimit.length} MIMIT + ${allEu.length} EU`);
+    document.getElementById('loading-overlay').classList.add('hidden');
+  } catch(e) {
+    setSyncState('err','Errore connessione: '+e.message);
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }
+});
+
+function setSyncState(state, msg){
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = msg;
+}
+
+/* ─────────────────────────────────────────────
+   SOURCE SWITCHER — FILTRO PADRE
+───────────────────────────────────────────── */
+function setSource(src){
+  activeSource = src;
+
+  // aggiorna bottoni
+  ['all','mimit','eu'].forEach(s => {
+    const b = document.getElementById('sbtn-'+s);
+    b.className = 'src-btn' + (s===src ? (s==='all' ? ' on-all' : s==='mimit' ? ' on-it' : ' on-eu') : '');
+  });
+
+  // Nascondi regione se EU puro
+  const regWrap = document.getElementById('filtro-regione-wrap');
+  regWrap.style.display = (src === 'eu') ? 'none' : '';
+
+  // Nascondi chip score se EU puro (non hanno score)
+  const chipWrap = document.getElementById('chip-score-wrap');
+  chipWrap.style.display = (src === 'eu') ? 'none' : '';
+
+  // Aggiorna label filtro Tipo
+  const selTipo = document.getElementById('sel-tipo');
+  const tipoLabel = document.querySelector('#filtro-tipo-wrap');
+  if(tipoLabel) tipoLabel.childNodes[0].textContent = (src === 'eu') ? 'Programma' : 'Tipo';
+
+  // Reset regione se si passa a EU
+  if(src === 'eu'){
+    document.getElementById('sel-regione').value = '';
+    activeChips.clear();
+    renderChips();
+  }
+
+  // Popola Tipo in base alla fonte
+  populateTipoSelect();
+  currentPage = 1;
+  applyFilters();
+}
+
+/* ─────────────────────────────────────────────
+   POPOLA SELECTS DINAMICI
+───────────────────────────────────────────── */
+function populateRegioneSelect(){
+  const all = new Set();
+  allMimit.forEach(i => {
+    const regs = Array.isArray(i.regioni) ? i.regioni : [];
+    regs.forEach(r => { if(r) all.add(r); });
+  });
+  const sel = document.getElementById('sel-regione');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tutte</option>';
+  [...all].sort().forEach(r => {
+    const o = document.createElement('option');
+    o.value = r; o.textContent = r;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+function populateTipoSelect(){
+  const sel = document.getElementById('sel-tipo');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tutti</option>';
+  const items = (activeSource === 'eu') ? allEu :
+                (activeSource === 'mimit') ? allMimit :
+                [...allMimit, ...allEu];
+
+  if(activeSource === 'eu'){
+    // Programma
+    const progs = new Set();
+    allEu.forEach(i => { if(i.programma) progs.add(i.programma); });
+    [...progs].sort().forEach(p => {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      sel.appendChild(o);
+    });
+  } else {
+    // Forme di agevolazione MIMIT
+    const forme = new Set();
+    allMimit.forEach(i => {
+      (Array.isArray(i.forme) ? i.forme : []).forEach(f => { if(f) forme.add(f); });
+    });
+    [...forme].sort().forEach(f => {
+      const o = document.createElement('option');
+      o.value = f; o.textContent = f;
+      sel.appendChild(o);
+    });
+  }
+  sel.value = (sel.querySelector(`option[value="${cur}"]`)) ? cur : '';
+}
+
+/* ─────────────────────────────────────────────
+   CHIP SCORE
+───────────────────────────────────────────── */
+function toggleChip(c){
+  if(activeChips.has(c)) activeChips.delete(c);
+  else activeChips.add(c);
+  renderChips();
+  currentPage = 1;
+  applyFilters();
+}
+function renderChips(){
+  ['in','val','out'].forEach(c => {
+    const el = document.getElementById('chip-'+c);
+    if(activeChips.has(c)) el.classList.add('on');
+    else el.classList.remove('on');
+  });
+}
+
+/* ─────────────────────────────────────────────
+   FILTRI PRINCIPALI
+───────────────────────────────────────────── */
+function applyFilters(){
+  // Leggi valori senza toccare il DOM dei filtri
+  const q       = (document.getElementById('search-bandi').value || '').toLowerCase().trim();
+  const stato   = document.getElementById('sel-stato').value;
+  const regione = document.getElementById('sel-regione').value;
+  const tipo    = document.getElementById('sel-tipo').value;
+  const now     = new Date();
+
+  // Pool in base alla fonte selezionata
+  let pool = [];
+  if(activeSource === 'all')   pool = [...allMimit, ...allEu];
+  if(activeSource === 'mimit') pool = [...allMimit];
+  if(activeSource === 'eu')    pool = [...allEu];
+
+  let filtered = pool.filter(item => {
+    // Testo
+    if(q){
+      const hay = ((item.titolo||'')+(item.desc_||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+
+    // Stato
+    if(stato){
+      const ap = item.apertura ? new Date(item.apertura) : null;
+      const ch = item.chiusura ? new Date(item.chiusura) : null;
+      if(stato==='aperto'  && !((!ap||ap<=now) && (!ch||ch>=now))) return false;
+      if(stato==='scaduto' && !(ch && ch < now)) return false;
+      if(stato==='futuro'  && !(ap && ap > now)) return false;
+    }
+
+    // Regione (solo MIMIT)
+    if(regione && item._src === 'mimit'){
+      const regs = Array.isArray(item.regioni) ? item.regioni : [];
+      if(!regs.includes(regione)) return false;
+    }
+
+    // Tipo/Programma
+    if(tipo){
+      if(item._src === 'eu'){
+        if(item.programma !== tipo) return false;
+      } else {
+        const ff = Array.isArray(item.forme) ? item.forme : [];
+        if(!ff.includes(tipo)) return false;
+      }
+    }
+
+    // Chip score (solo MIMIT)
+    if(activeChips.size > 0 && item._src === 'mimit'){
+      const sc = scoreItem(item);
+      if(!activeChips.has(sc)) return false;
+    }
+
+    return true;
+  });
+
+  lastFiltered = filtered;
+  document.getElementById('result-count').textContent = `${filtered.length} bandi trovati`;
+  renderPage(currentPage);
+  renderPager(filtered.length);
+  updateShortCount();
+}
+
+function resetFilters(){
+  document.getElementById('search-bandi').value = '';
+  document.getElementById('sel-stato').value    = '';
+  document.getElementById('sel-regione').value  = '';
+  document.getElementById('sel-tipo').value     = '';
+  activeChips.clear();
+  renderChips();
+  currentPage = 1;
+  applyFilters();
+}
+
+/* ─────────────────────────────────────────────
+   SCORE MIMIT
+───────────────────────────────────────────── */
+function scoreItem(item){
+  const ts = teamState[item.id];
+  if(ts){ if(ts.shortlist) return 'in'; if(ts.excluded) return 'out'; }
+  const now = new Date();
+  const ch = item.chiusura ? new Date(item.chiusura) : null;
+  if(ch && ch < now) return 'out';
+  return 'val';
+}
+
+/* ─────────────────────────────────────────────
+   RENDER CARDS
+───────────────────────────────────────────── */
+function renderPage(page){
+  currentPage = page;
+  const start = (page-1)*PAGE_SIZE;
+  const slice = lastFiltered.slice(start, start+PAGE_SIZE);
+  const grid  = document.getElementById('bandi-grid');
+  grid.innerHTML = slice.map(item => buildCard(item)).join('');
+}
+
+function buildCard(item){
+  const isEu   = item._src === 'eu';
+  const now    = new Date();
+  const ap     = item.apertura ? new Date(item.apertura) : null;
+  const ch     = item.chiusura ? new Date(item.chiusura) : null;
+  const ts     = teamState[item.id] || {};
+
+  // Badge stato
+  let statoBadge = '';
+  if(isEu){
+    const s = (item.status||'').toLowerCase();
+    if(s==='open'||s==='aperto') statoBadge = '<span class="badge b-attivo">Aperto</span>';
+    else if(s==='closed'||s==='chiuso') statoBadge = '<span class="badge b-chiuso">Chiuso</span>';
+    else if(s==='forthcoming'||s==='futuro') statoBadge = '<span class="badge b-fut">Futuro</span>';
+    else statoBadge = `<span class="badge b-chiuso">${item.status||'—'}</span>`;
+  } else {
+    if(ch && ch < now) statoBadge = '<span class="badge b-scad">Scaduto</span>';
+    else if(ap && ap > now) statoBadge = '<span class="badge b-fut">Futuro</span>';
+    else statoBadge = '<span class="badge b-attivo">Aperto</span>';
+  }
+
+  // Fonte badge
+  const fonteBadge = isEu
+    ? '<span class="badge b-eu-portal">🇪🇺 EU Portal</span>'
+    : '<span class="badge b-naz">🇮🇹 MIMIT</span>';
+
+  // Score chip (solo MIMIT)
+  let scoreHtml = '';
+  if(!isEu){
+    const sc = scoreItem(item);
+    const cls = sc==='in'?'s-in':sc==='val'?'s-val':'s-out';
+    const lab = sc==='in'?'In target':sc==='val'?'Da valutare':'Fuori target';
+    scoreHtml = `<span class="score ${cls}" title="${lab}">${lab}</span>`;
+  }
+
+  // Date
+  const fmtDate = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+  // Chips settori/obiettivi
+  let chipsHtml = '';
+  const sett = Array.isArray(item.settori) ? item.settori.slice(0,3) : [];
+  if(sett.length){
+    chipsHtml = '<div class="chips">'+sett.map(s=>`<span class="chip alt">${s}</span>`).join('')+'</div>';
+  }
+
+  // Info extra EU
+  let extraHtml = '';
+  if(isEu && item.programma){
+    extraHtml = `<div class="meta-rows"><span>📁 <b>Programma:</b> ${escHtml(item.programma)}</span></div>`;
+  }
+
+  // Budget
+  const budget = item.budget ? '€ '+fmtNum(item.budget) : null;
+  const agev   = item.agev_max ? '€ '+fmtNum(item.agev_max) : null;
+
+  // Azioni
+  const isIn  = ts.shortlist;
+  const isOut = ts.excluded;
+  const actShort = `<button class="card-actions ${isIn?'act-in':''}" onclick="toggleShortlist('${item.id}','${item._src}',this)" title="Shortlist">${isIn?'⭐ Shortlisted':'☆ Shortlist'}</button>`;
+  const actExcl  = `<button class="card-actions ${isOut?'act-ex':''}" onclick="toggleExcluded('${item.id}','${item._src}',this)" title="Escludi">${isOut?'🚫 Escluso':'Escludi'}</button>`;
+  const actLink  = item.link ? `<a class="btn-link" href="${escHtml(item.link)}" target="_blank" rel="noopener">🔗 Apri</a>` : '';
+  const actDet   = `<button onclick="openModal('${item.id}','${item._src}')" style="margin-left:auto">📄 Dettaglio</button>`;
+
+  return `<div class="card${isEu?' is-eu':''}${isOut?' excluded':''}">
+  <div class="badges">${fonteBadge}${statoBadge}${scoreHtml}</div>
+  <h4><a href="${item.link?escHtml(item.link):'#'}" target="_blank" rel="noopener">${escHtml(item.titolo||'Senza titolo')}</a></h4>
+  ${item.desc_ ? `<div class="desc">${escHtml(item.desc_)}</div>` : ''}
+  ${(budget||agev) ? `<div class="nums">
+    <div><div class="nv">${budget||'—'}</div><div class="nl">Budget</div></div>
+    <div><div class="nv">${agev||'—'}</div><div class="nl">Agev. max</div></div>
+    <div><div class="nv">${fmtDate(ch)}</div><div class="nl">Scadenza</div></div>
+  </div>` : `<div class="meta-rows"><span>📅 Scadenza: <b>${fmtDate(ch)}</b></span></div>`}
+  ${extraHtml}
+  ${chipsHtml}
+  <div class="card-actions">${actShort}${actExcl}${actLink}${actDet}</div>
+</div>`;
+}
+
+/* ─────────────────────────────────────────────
+   PAGER
+───────────────────────────────────────────── */
+function renderPager(total){
+  const pages = Math.ceil(total/PAGE_SIZE);
+  const pg    = document.getElementById('pager-bandi');
+  if(pages<=1){ pg.innerHTML=''; return; }
+  let h = `<button onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+  const w = 2;
+  for(let i=1;i<=pages;i++){
+    if(i===1||i===pages||Math.abs(i-currentPage)<=w){
+      h += `<button class="${i===currentPage?'on':''}" onclick="goPage(${i})">${i}</button>`;
+    } else if(Math.abs(i-currentPage)===w+1){
+      h += `<span style="padding:0 4px;color:var(--ink-3)">…</span>`;
+    }
+  }
+  h += `<button onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>`;
+  pg.innerHTML = h;
+}
+
+function goPage(p){
+  const pages = Math.ceil(lastFiltered.length/PAGE_SIZE);
+  if(p<1||p>pages) return;
+  currentPage = p;
+  renderPage(p);
+  renderPager(lastFiltered.length);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ─────────────────────────────────────────────
+   SHORTLIST / EXCLUDED
+───────────────────────────────────────────── */
+async function toggleShortlist(id, src, btn){
+  const ts   = teamState[id] || {};
+  const newV = !ts.shortlist;
+  teamState[id] = {...ts, shortlist:newV, excluded: newV ? false : ts.excluded};
+  await upsertTeamState(id);
+  applyFilters();
+  updateShortCount();
+}
+
+async function toggleExcluded(id, src, btn){
+  const ts   = teamState[id] || {};
+  const newV = !ts.excluded;
+  teamState[id] = {...ts, excluded:newV, shortlist: newV ? false : ts.shortlist};
+  await upsertTeamState(id);
+  applyFilters();
+}
+
+async function upsertTeamState(id){
+  const ts = teamState[id];
+  try {
+    await fetch(`${SB_URL}/rest/v1/team_state`, {
+      method:'POST',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body: JSON.stringify({id_incentivo:id, shortlist:!!ts.shortlist, excluded:!!ts.excluded, nota:ts.nota||'', updated_by:'web-user', updated_at:new Date().toISOString()})
+    });
+  } catch(e){ console.error('upsert error',e); }
+}
+
+function updateShortCount(){
+  const n = Object.values(teamState).filter(t=>t.shortlist).length;
+  document.getElementById('cnt-short-tab').textContent = n;
+  if(document.getElementById('sec-shortlist').classList.contains('on')) renderShortlist();
+}
+
+/* ─────────────────────────────────────────────
+   SHORTLIST PAGE
+───────────────────────────────────────────── */
+function setTeamTab(t){
+  activeTeamTab = t;
+  document.querySelectorAll('.team-tab').forEach((b,i)=>b.classList.toggle('on',['shortlist','excluded'][i]===t));
+  renderShortlist();
+}
+
+function renderShortlist(){
+  const all = [...allMimit,...allEu];
+  const items = all.filter(i => {
+    const ts = teamState[i.id];
+    if(!ts) return false;
+    return activeTeamTab==='shortlist' ? ts.shortlist : ts.excluded;
+  });
+  document.getElementById('short-count').textContent = `${items.length} bandi`;
+  document.getElementById('shortlist-grid').innerHTML = items.map(i=>buildCard(i)).join('');
+}
+
+/* ─────────────────────────────────────────────
+   DASHBOARD
+───────────────────────────────────────────── */
+function renderDashboard(){
+  const now  = new Date();
+  const all  = [...allMimit, ...allEu];
+  const aperti  = all.filter(i => {
+    const ch = i.chiusura ? new Date(i.chiusura) : null;
+    const ap = i.apertura ? new Date(i.apertura) : null;
+    if(i._src==='eu') return (i.status||'').toLowerCase()==='open';
+    return (!ap||ap<=now)&&(!ch||ch>=now);
+  });
+  const shortN = Object.values(teamState).filter(t=>t.shortlist).length;
+
+  // KPI
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi gr"><div class="v">${all.length}</div><div class="l">Totale bandi</div></div>
+    <div class="kpi bl"><div class="v">${allMimit.length}</div><div class="l">MIMIT</div></div>
+    <div class="kpi tl"><div class="v">${allEu.length}</div><div class="l">EU Portal</div></div>
+    <div class="kpi am"><div class="v">${aperti.length}</div><div class="l">Aperti ora</div></div>
+    <div class="kpi rd"><div class="v">${shortN}</div><div class="l">In shortlist</div></div>
+  `;
+
+  // Regioni top MIMIT
+  const regCount = {};
+  allMimit.forEach(i => (Array.isArray(i.regioni)?i.regioni:[]).forEach(r=>{ regCount[r]=(regCount[r]||0)+1; }));
+  const topReg = Object.entries(regCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxR   = topReg[0]?.[1]||1;
+
+  // Settori top
+  const setCount = {};
+  all.forEach(i => (Array.isArray(i.settori)?i.settori:[]).forEach(s=>{ setCount[s]=(setCount[s]||0)+1; }));
+  const topSet = Object.entries(setCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxS   = topSet[0]?.[1]||1;
+
+  document.getElementById('dash-panels').innerHTML = `
+    <div class="panel">
+      <h3>Top Regioni (MIMIT)</h3>
+      ${topReg.map(([r,n])=>`<div class="bar"><span class="lab">${r}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxR*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+    </div>
+    <div class="panel">
+      <h3>Top Settori</h3>
+      ${topSet.map(([s,n])=>`<div class="bar b2"><span class="lab">${s}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxS*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────────
+   MODAL DETTAGLIO
+───────────────────────────────────────────── */
+function openModal(id, src){
+  const item = (src==='eu' ? allEu : allMimit).find(i=>i.id===id);
+  if(!item) return;
+  const ts  = teamState[id] || {};
+  const now = new Date();
+  const ch  = item.chiusura ? new Date(item.chiusura) : null;
+  const ap  = item.apertura ? new Date(item.apertura) : null;
+  const fmt = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+
+  const rows = [
+    src==='eu' && item.programma ? ['Programma', item.programma] : null,
+    ['Apertura', fmt(ap)],
+    ['Scadenza', fmt(ch)],
+    item.concedente ? ['Concedente', item.concedente] : null,
+    item.budget     ? ['Budget totale', '€ '+fmtNum(item.budget)] : null,
+    item.agev_max   ? ['Agev. massima', '€ '+fmtNum(item.agev_max)] : null,
+    item.normativa  ? ['Normativa', item.normativa] : null,
+  ].filter(Boolean);
+
+  const settori = Array.isArray(item.settori) ? item.settori : [];
+  const forme   = Array.isArray(item.forme)   ? item.forme   : [];
+  const regioni = Array.isArray(item.regioni) ? item.regioni : [];
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="badges" style="margin-bottom:12px">
+      ${src==='eu'?'<span class="badge b-eu-portal">🇪🇺 EU Portal</span>':'<span class="badge b-naz">🇮🇹 MIMIT</span>'}
+    </div>
+    <h2>${escHtml(item.titolo||'Senza titolo')}</h2>
+    <div class="modal-meta">
+      ${rows.map(([l,v])=>`<span style="font-size:12.5px;background:#f3f4f0;border-radius:6px;padding:4px 10px"><b>${l}:</b> ${escHtml(String(v))}</span>`).join('')}
+    </div>
+    ${item.desc_ ? `<div class="modal-body">${escHtml(item.desc_)}</div>` : ''}
+    ${settori.length ? `<div class="modal-section"><h3>Settori</h3><div class="chips">${settori.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')}</div></div>` : ''}
+    ${forme.length   ? `<div class="modal-section"><h3>Forme agevolazione</h3><div class="chips">${forme.map(f=>`<span class="chip">${escHtml(f)}</span>`).join('')}</div></div>` : ''}
+    ${regioni.length ? `<div class="modal-section"><h3>Regioni</h3><div class="chips">${regioni.map(r=>`<span class="chip alt">${escHtml(r)}</span>`).join('')}</div></div>` : ''}
+    <div class="modal-section">
+      <h3>Nota team</h3>
+      <textarea class="nota-area" id="nota-input" placeholder="Aggiungi una nota interna…">${escHtml(ts.nota||'')}</textarea>
+      <button class="btn primary" style="margin-top:8px" onclick="saveNota('${id}')">💾 Salva nota</button>
+    </div>
+    ${item.link ? `<div style="margin-top:14px"><a href="${escHtml(item.link)}" target="_blank" rel="noopener" class="btn primary">🔗 Apri bando ufficiale</a></div>` : ''}
+  `;
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+async function saveNota(id){
+  const nota = document.getElementById('nota-input').value;
+  teamState[id] = {...(teamState[id]||{}), nota};
+  await upsertTeamState(id);
+  alert('Nota salvata ✓');
+}
+
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+function closeModalBg(e){ if(e.target===document.getElementById('modal-bg')) closeModal(); }
+
+/* ─────────────────────────────────────────────
+   NAV TABS
+───────────────────────────────────────────── */
+function showTab(t){
+  ['bandi','shortlist','dashboard'].forEach(s => {
+    document.getElementById('sec-'+s).classList.toggle('on', s===t);
+  });
+  document.querySelectorAll('nav.tabs button').forEach((b,i)=>{
+    b.classList.toggle('on',['bandi','shortlist','dashboard'][i]===t);
+  });
+  if(t==='shortlist') renderShortlist();
+  if(t==='dashboard') renderDashboard();
+}
+
+/* ─────────────────────────────────────────────
+   UTILS
+───────────────────────────────────────────── */
+function fmtNum(n){ return Number(n).toLocaleString('it-IT'); }
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
