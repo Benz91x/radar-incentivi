@@ -193,12 +193,12 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 
 /* PAGINATOR */
 .pager{display:flex;align-items:center;gap:6px;margin-top:20px;justify-content:center;flex-wrap:wrap}
-.pager button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;font-size:12.5px;color:var(--ink-2);transition:.12s}
+.pager button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;font-size:12.5px;color:var(--ink-2);transition:.12px}
 .pager button:hover{border-color:var(--green-dark);color:var(--green-dark)}
 .pager button.on{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
 .pager button:disabled{opacity:.4;cursor:default}
 
-/* SECTIONS */
+/* SECTIONS — FIX: gestite SOLO via classe .on, mai via inline style */
 .section{display:none;padding:22px 0 40px}
 .section.on{display:block}
 
@@ -216,6 +216,9 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 /* NOTA TEXTAREA */
 .nota-area{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;margin-top:6px}
 .nota-area:focus{outline:none;border-color:var(--green)}
+
+/* SCORE BADGE — stili extra per scoring automatico */
+.score-auto{font-size:10px;opacity:.75;margin-left:3px}
 </style>
 </head>
 <body>
@@ -243,9 +246,10 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
       </div>
     </div>
     <nav class="tabs">
-      <button class="on" onclick="showTab('bandi')">📋 Bandi <span class="cnt" id="cnt-bandi-tab">0</span></button>
+      <!-- FIX: Dashboard come prima tab (landing page) -->
+      <button class="on" onclick="showTab('dashboard')">📊 Dashboard</button>
+      <button onclick="showTab('bandi')">📋 Bandi <span class="cnt" id="cnt-bandi-tab">0</span></button>
       <button onclick="showTab('shortlist')">⭐ Shortlist <span class="cnt" id="cnt-short-tab">0</span></button>
-      <button onclick="showTab('dashboard')">📊 Dashboard</button>
     </nav>
   </div>
 </header>
@@ -253,8 +257,16 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 <main>
   <div class="wrap">
 
+    <!-- ═══════════════════ SEZIONE DASHBOARD (landing) ═══════════════════ -->
+    <!-- FIX: sec-dashboard è la sezione con classe .on all'avvio -->
+    <div class="section on" id="sec-dashboard">
+      <div style="margin:20px 0 16px"><h2 style="font-size:17px">📊 Dashboard</h2></div>
+      <div class="kpis" id="kpi-row"></div>
+      <div class="panels" id="dash-panels"></div>
+    </div>
+
     <!-- ═══════════════════ SEZIONE BANDI ═══════════════════ -->
-    <div class="section on" id="sec-bandi">
+    <div class="section" id="sec-bandi">
 
       <!-- FILTRO PADRE: scelta fonte -->
       <div class="source-switcher">
@@ -272,13 +284,11 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 
       <!-- TOOLBAR FILTRI (search FUORI dal re-render) -->
       <div class="toolbar" id="toolbar-bandi">
-        <!-- Search: rimane sempre nel DOM, non viene mai sovrascritto -->
         <div class="search-wrap">
           🔍 Cerca
           <input type="text" id="search-bandi" placeholder="Titolo o descrizione…" oninput="applyFilters()" autocomplete="off">
         </div>
 
-        <!-- Stato -->
         <label>Stato
           <select id="sel-stato" onchange="applyFilters()">
             <option value="">Tutti gli stati</option>
@@ -288,14 +298,12 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
           </select>
         </label>
 
-        <!-- Regione — visibile solo per MIMIT/Tutti -->
         <label id="filtro-regione-wrap">Regione
           <select id="sel-regione" onchange="applyFilters()">
             <option value="">Tutte</option>
           </select>
         </label>
 
-        <!-- Tipo agevolazione (per MIMIT) / Programma (per EU) -->
         <label id="filtro-tipo-wrap">Tipo
           <select id="sel-tipo" onchange="applyFilters()">
             <option value="">Tutti</option>
@@ -331,13 +339,6 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
       <div class="result-count" id="short-count"></div>
     </div>
 
-    <!-- ═══════════════════ SEZIONE DASHBOARD ═══════════════════ -->
-    <div class="section" id="sec-dashboard">
-      <div style="margin:20px 0 16px"><h2 style="font-size:17px">📊 Dashboard</h2></div>
-      <div class="kpis" id="kpi-row"></div>
-      <div class="panels" id="dash-panels"></div>
-    </div>
-
   </div>
 </main>
 
@@ -356,7 +357,7 @@ nav.tabs .cnt{background:#2c2c2c;border-radius:9px;padding:1px 8px;font-size:11p
 const SB_URL  = 'https://ncfpbqoforedqwzgsqql.supabase.co';
 const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZnBicW9mb3JlZHF3emdzcXFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMTQ0OTAsImV4cCI6MjA5NjY5MDQ5MH0.aio3ItORmdaUIuHMYNfsgpxVczqsUYSPIUqmQNOQx4U';
 
-/* FIX: paginazione automatica — carica TUTTE le righe superando il limite 1000 di Supabase */
+/* Paginazione automatica — carica TUTTE le righe superando il limite 1000 */
 async function sbFetch(table, params=''){
   const PAGE = 1000;
   let all = [], offset = 0, done = false;
@@ -380,15 +381,69 @@ async function sbFetch(table, params=''){
 /* ─────────────────────────────────────────────
    STATO GLOBALE
 ───────────────────────────────────────────── */
-let allMimit      = [];   // tabella incentivi (MIMIT)
-let allEu         = [];   // tabella incentivi_eu
-let teamState     = {};   // { id_incentivo: {shortlist, excluded, nota} }
-let activeSource  = 'all'; // 'all' | 'mimit' | 'eu'
+let allMimit      = [];
+let allEu         = [];
+let teamState     = {};
+let activeSource  = 'all';
 let activeChips   = new Set();
 let currentPage   = 1;
 const PAGE_SIZE   = 30;
 let lastFiltered  = [];
 let activeTeamTab = 'shortlist';
+
+/* ─────────────────────────────────────────────
+   SCORING AUTOMATICO
+   Criteri per bandi MIMIT:
+   - IN TARGET:    in shortlist, OPPURE budget >= 100k + apertura attiva + ha settori
+   - FUORI TARGET: escluso manualmente, OPPURE scaduto, OPPURE budget < 5k
+   - DA VALUTARE:  tutto il resto
+───────────────────────────────────────────── */
+function scoreItem(item){
+  const ts  = teamState[item.id];
+  const now = new Date();
+  const ch  = item.chiusura ? new Date(item.chiusura) : null;
+  const ap  = item.apertura ? new Date(item.apertura) : null;
+
+  // Priorità 1: stato manuale
+  if(ts && ts.shortlist) return 'in';
+  if(ts && ts.excluded)  return 'out';
+
+  // Priorità 2: bando scaduto
+  if(ch && ch < now) return 'out';
+
+  // Priorità 3: scoring automatico sui dati del bando
+  let score = 0;
+
+  // Budget disponibile (agev_max o budget)
+  const bud = Number(item.agev_max || item.budget || 0);
+  if(bud >= 500000)  score += 3;
+  else if(bud >= 100000) score += 2;
+  else if(bud >= 10000)  score += 1;
+  else if(bud > 0 && bud < 5000) score -= 2;
+
+  // Ha settori definiti (bando specifico, non generico)
+  const sett = Array.isArray(item.settori) ? item.settori : [];
+  if(sett.length >= 3) score += 2;
+  else if(sett.length > 0) score += 1;
+
+  // Apertura attiva ora (non futuro, non scaduto)
+  const isAperto = (!ap || ap <= now) && (!ch || ch >= now);
+  if(isAperto) score += 1;
+
+  // È futuro (interessante ma non urgente)
+  if(ap && ap > now) score += 0; // neutro
+
+  // Ha forma agevolazione definita
+  const forme = Array.isArray(item.forme) ? item.forme : [];
+  if(forme.length > 0) score += 1;
+
+  // PNRR bonus
+  if((item.titolo||'').toUpperCase().includes('PNRR')) score += 1;
+
+  if(score >= 5) return 'in';
+  if(score <= 0) return 'out';
+  return 'val';
+}
 
 /* ─────────────────────────────────────────────
    BOOT
@@ -408,14 +463,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     teamState = {};
     tsData.forEach(r => { teamState[r.id_incentivo] = r; });
 
-    // Conta badge tab
+    // Aggiorna contatori tab e source switcher
     document.getElementById('cnt-bandi-tab').textContent = allMimit.length + allEu.length;
     document.getElementById('cnt-all').textContent   = allMimit.length + allEu.length;
     document.getElementById('cnt-mimit').textContent = allMimit.length;
     document.getElementById('cnt-eu').textContent    = allEu.length;
 
+    // FIX: popola entrambi i select all'avvio
     populateRegioneSelect();
+    populateTipoSelect();
     applyFilters();
+
+    // FIX: renderizza la dashboard (è la landing page)
     renderDashboard();
 
     setSyncState('ok', `Aggiornato · ${allMimit.length} MIMIT + ${allEu.length} EU`);
@@ -439,32 +498,26 @@ function setSyncState(state, msg){
 function setSource(src){
   activeSource = src;
 
-  // aggiorna bottoni
   ['all','mimit','eu'].forEach(s => {
     const b = document.getElementById('sbtn-'+s);
     b.className = 'src-btn' + (s===src ? (s==='all' ? ' on-all' : s==='mimit' ? ' on-it' : ' on-eu') : '');
   });
 
-  // Nascondi regione se EU puro
   const regWrap = document.getElementById('filtro-regione-wrap');
   regWrap.style.display = (src === 'eu') ? 'none' : '';
 
-  // Nascondi chip score se EU puro (non hanno score)
   const chipWrap = document.getElementById('chip-score-wrap');
   chipWrap.style.display = (src === 'eu') ? 'none' : '';
 
-  // Aggiorna label filtro Tipo
   const tipoLabel = document.querySelector('#filtro-tipo-wrap');
   if(tipoLabel) tipoLabel.childNodes[0].textContent = (src === 'eu') ? 'Programma' : 'Tipo';
 
-  // Reset regione se si passa a EU
   if(src === 'eu'){
     document.getElementById('sel-regione').value = '';
     activeChips.clear();
     renderChips();
   }
 
-  // Popola Tipo in base alla fonte
   populateTipoSelect();
   currentPage = 1;
   applyFilters();
@@ -496,7 +549,6 @@ function populateTipoSelect(){
   sel.innerHTML = '<option value="">Tutti</option>';
 
   if(activeSource === 'eu'){
-    // Programma
     const progs = new Set();
     allEu.forEach(i => { if(i.programma) progs.add(i.programma); });
     [...progs].sort().forEach(p => {
@@ -505,7 +557,6 @@ function populateTipoSelect(){
       sel.appendChild(o);
     });
   } else {
-    // Forme di agevolazione MIMIT
     const forme = new Set();
     allMimit.forEach(i => {
       (Array.isArray(i.forme) ? i.forme : []).forEach(f => { if(f) forme.add(f); });
@@ -547,44 +598,37 @@ function applyFilters(){
   const tipo    = document.getElementById('sel-tipo').value;
   const now     = new Date();
 
-  // Pool in base alla fonte selezionata
   let pool = [];
   if(activeSource === 'all')   pool = [...allMimit, ...allEu];
   if(activeSource === 'mimit') pool = [...allMimit];
   if(activeSource === 'eu')    pool = [...allEu];
 
   let filtered = pool.filter(item => {
-    // Testo
     if(q){
       const hay = ((item.titolo||'')+(item.desc_||'')+(item.summary||'')+(item.description||'')).toLowerCase();
       if(!hay.includes(q)) return false;
     }
 
-    // FIX: Stato — gestisce sia MIMIT (date) che EU (campo status)
     if(stato){
       const ap = item.apertura ? new Date(item.apertura) : null;
       const ch = item.chiusura ? new Date(item.chiusura) : null;
       const euStatus = (item.status||'').toLowerCase().trim();
       if(item._src === 'eu'){
-        // EU usa il campo status: open, forthcoming, closed
         if(stato==='aperto'  && !(euStatus==='open'  || euStatus==='aperto')) return false;
         if(stato==='futuro'  && !(euStatus==='forthcoming' || euStatus==='futuro' || euStatus==='in attivazione')) return false;
         if(stato==='scaduto' && !(euStatus==='closed'|| euStatus==='chiuso' || euStatus==='scaduto' || (ch && ch < now))) return false;
       } else {
-        // MIMIT usa le date
         if(stato==='aperto'  && !((!ap||ap<=now) && (!ch||ch>=now))) return false;
         if(stato==='scaduto' && !(ch && ch < now)) return false;
         if(stato==='futuro'  && !(ap && ap > now)) return false;
       }
     }
 
-    // Regione (solo MIMIT)
     if(regione && item._src === 'mimit'){
       const regs = Array.isArray(item.regioni) ? item.regioni : [];
       if(!regs.includes(regione)) return false;
     }
 
-    // Tipo/Programma
     if(tipo){
       if(item._src === 'eu'){
         if(item.programma !== tipo) return false;
@@ -594,7 +638,6 @@ function applyFilters(){
       }
     }
 
-    // Chip score (solo MIMIT)
     if(activeChips.size > 0 && item._src === 'mimit'){
       const sc = scoreItem(item);
       if(!activeChips.has(sc)) return false;
@@ -622,18 +665,6 @@ function resetFilters(){
 }
 
 /* ─────────────────────────────────────────────
-   SCORE MIMIT
-───────────────────────────────────────────── */
-function scoreItem(item){
-  const ts = teamState[item.id];
-  if(ts){ if(ts.shortlist) return 'in'; if(ts.excluded) return 'out'; }
-  const now = new Date();
-  const ch = item.chiusura ? new Date(item.chiusura) : null;
-  if(ch && ch < now) return 'out';
-  return 'val';
-}
-
-/* ─────────────────────────────────────────────
    RENDER CARDS
 ───────────────────────────────────────────── */
 function renderPage(page){
@@ -651,7 +682,6 @@ function buildCard(item){
   const ch     = item.chiusura ? new Date(item.chiusura) : null;
   const ts     = teamState[item.id] || {};
 
-  // Badge stato
   let statoBadge = '';
   if(isEu){
     const s = (item.status||'').toLowerCase();
@@ -666,47 +696,43 @@ function buildCard(item){
     else statoBadge = '<span class="badge b-attivo">Aperto</span>';
   }
 
-  // Fonte badge
   const fonteBadge = isEu
     ? '<span class="badge b-eu-portal">🇪🇺 EU Portal</span>'
     : '<span class="badge b-naz">🇮🇹 MIMIT</span>';
 
-  // Score chip (solo MIMIT)
+  // FIX: score con algoritmo automatico + indicatore "auto" se non manuale
   let scoreHtml = '';
   if(!isEu){
-    const sc = scoreItem(item);
+    const sc  = scoreItem(item);
     const cls = sc==='in'?'s-in':sc==='val'?'s-val':'s-out';
     const lab = sc==='in'?'In target':sc==='val'?'Da valutare':'Fuori target';
-    scoreHtml = `<span class="score ${cls}" title="${lab}">${lab}</span>`;
+    const ts2 = teamState[item.id];
+    const isManual = ts2 && (ts2.shortlist || ts2.excluded);
+    const autoTag = isManual ? '' : '<span class="score-auto">(auto)</span>';
+    scoreHtml = `<span class="score ${cls}" title="${lab} — ${isManual?'Classificazione manuale':'Score automatico'}">${lab}${autoTag}</span>`;
   }
 
-  // Date
   const fmtDate = d => d ? d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 
-  // Chips settori/obiettivi
   let chipsHtml = '';
   const sett = Array.isArray(item.settori) ? item.settori.slice(0,3) : [];
   if(sett.length){
     chipsHtml = '<div class="chips">'+sett.map(s=>`<span class="chip alt">${escHtml(s)}</span>`).join('')+'</div>';
   }
 
-  // FIX: descrizione EU — usa desc_, summary o description (fallback)
   const descText = item.desc_ || item.summary || item.description || '';
   const descHtml = descText
     ? `<div class="desc">${escHtml(descText)}</div>`
     : (isEu ? '<div class="desc" style="color:#bbb;font-style:italic;font-size:12px">Nessuna descrizione disponibile</div>' : '');
 
-  // Info extra EU
   let extraHtml = '';
   if(isEu && item.programma){
     extraHtml = `<div class="meta-rows"><span>📁 <b>Programma:</b> ${escHtml(item.programma)}</span></div>`;
   }
 
-  // Budget
   const budget = item.budget ? '€ '+fmtNum(item.budget) : null;
   const agev   = item.agev_max ? '€ '+fmtNum(item.agev_max) : null;
 
-  // Azioni
   const isIn  = ts.shortlist;
   const isOut = ts.excluded;
   const actShort = `<button class="${isIn?'act-in':''}" onclick="toggleShortlist('${item.id}','${item._src}',this)" title="Shortlist">${isIn?'⭐ Shortlisted':'☆ Shortlist'}</button>`;
@@ -827,14 +853,17 @@ function renderDashboard(){
     if(i._src==='eu') return (i.status||'').toLowerCase()==='open';
     return (!ap||ap<=now)&&(!ch||ch>=now);
   });
-  const shortN = Object.values(teamState).filter(t=>t.shortlist).length;
+  const shortN  = Object.values(teamState).filter(t=>t.shortlist).length;
 
-  // KPI
+  // FIX: calcola quanti bandi MIMIT sono "In target" con lo scoring automatico
+  const inTargetN = allMimit.filter(i => scoreItem(i) === 'in').length;
+
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi gr"><div class="v">${all.length}</div><div class="l">Totale bandi</div></div>
     <div class="kpi bl"><div class="v">${allMimit.length}</div><div class="l">MIMIT</div></div>
     <div class="kpi tl"><div class="v">${allEu.length}</div><div class="l">EU Portal</div></div>
     <div class="kpi am"><div class="v">${aperti.length}</div><div class="l">Aperti ora</div></div>
+    <div class="kpi gr" style="cursor:pointer" onclick="goToBandiFiltered('in')" title="Clicca per vedere i bandi in target"><div class="v">${inTargetN}</div><div class="l">In target 🎯</div></div>
     <div class="kpi rd"><div class="v">${shortN}</div><div class="l">In shortlist</div></div>
   `;
 
@@ -870,6 +899,11 @@ function renderDashboard(){
     else mimitStati.aperti++;
   });
 
+  // Score distribution MIMIT
+  const scoreDist = {in:0, val:0, out:0};
+  allMimit.forEach(i => { scoreDist[scoreItem(i)]++; });
+  const maxSc = Math.max(...Object.values(scoreDist), 1);
+
   document.getElementById('dash-panels').innerHTML = `
     <div class="panel">
       <h3>Top Regioni (MIMIT)</h3>
@@ -892,7 +926,40 @@ function renderDashboard(){
       ${topEuStati.map(([s,n])=>`<div class="bar b3"><span class="lab">${escHtml(s)}</span><span class="tr"><span class="fl" style="width:${Math.round(n/maxES*100)}%"></span></span><span class="n">${n}</span></div>`).join('')}
       ${topEuStati.length===0?'<p style="color:var(--ink-3);font-size:12px">Nessun dato</p>':''}
     </div>
+    <div class="panel">
+      <h3>🎯 Score MIMIT (automatico)</h3>
+      <div class="bar"><span class="lab">✅ In target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.in/maxSc*100)}%;background:var(--green)"></span></span><span class="n">${scoreDist.in}</span></div>
+      <div class="bar"><span class="lab">🔶 Da valutare</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.val/maxSc*100)}%;background:var(--amber)"></span></span><span class="n">${scoreDist.val}</span></div>
+      <div class="bar"><span class="lab">⬜ Fuori target</span><span class="tr"><span class="fl" style="width:${Math.round(scoreDist.out/maxSc*100)}%;background:#bbb"></span></span><span class="n">${scoreDist.out}</span></div>
+      <p style="font-size:11px;color:var(--ink-3);margin-top:10px">Criteri: budget disponibile, settori coperti, stato apertura, forma agevolazione</p>
+    </div>
   `;
+}
+
+/* Naviga ai bandi filtrando per score chip */
+function goToBandiFiltered(chip){
+  showTab('bandi');
+  activeChips.clear();
+  activeChips.add(chip);
+  renderChips();
+  currentPage = 1;
+  applyFilters();
+}
+
+/* ─────────────────────────────────────────────
+   NAV TABS — FIX: usa SOLO classList, mai inline style
+───────────────────────────────────────────── */
+function showTab(t){
+  // Nasconde tutte le sezioni rimuovendo .on
+  ['dashboard','bandi','shortlist'].forEach(s => {
+    document.getElementById('sec-'+s).classList.toggle('on', s===t);
+  });
+  // Aggiorna il tab attivo nella nav
+  document.querySelectorAll('nav.tabs button').forEach((b,i)=>{
+    b.classList.toggle('on',['dashboard','bandi','shortlist'][i]===t);
+  });
+  if(t==='shortlist') renderShortlist();
+  if(t==='dashboard') renderDashboard();
 }
 
 /* ─────────────────────────────────────────────
@@ -921,8 +988,6 @@ function openModal(id, src){
   const settori = Array.isArray(item.settori) ? item.settori : [];
   const forme   = Array.isArray(item.forme)   ? item.forme   : [];
   const regioni = Array.isArray(item.regioni) ? item.regioni : [];
-
-  // FIX: descrizione nel modal con fallback per EU
   const descModal = item.desc_ || item.summary || item.description || '';
 
   document.getElementById('modal-content').innerHTML = `
@@ -960,25 +1025,6 @@ async function saveNota(id){
 
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
 function closeModalBg(e){ if(e.target===document.getElementById('modal-bg')) closeModal(); }
-
-/* ─────────────────────────────────────────────
-   NAV TABS
-───────────────────────────────────────────── */
-function showTab(t){
-  ['bandi','shortlist','dashboard'].forEach(s => {
-    document.getElementById('sec-'+s).classList.toggle('on', s===t);
-  });
-  document.querySelectorAll('nav.tabs button').forEach((b,i)=>{
-    b.classList.toggle('on',['bandi','shortlist','dashboard'][i]===t);
-  });
-  if(t==='shortlist') renderShortlist();
-  if(t==='dashboard'){
-    // FIX: ri-renderizza sempre la dashboard e forza visibilità
-    renderDashboard();
-    const sec = document.getElementById('sec-dashboard');
-    if(sec) sec.style.display = 'block';
-  }
-}
 
 /* ─────────────────────────────────────────────
    UTILS
