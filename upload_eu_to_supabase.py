@@ -2,33 +2,32 @@
 """
 upload_eu_to_supabase.py — Radar Incentivi EU
 
-Legge eu_calls_raw.json e carica/aggiorna le call EU
-nella tabella Supabase `incentivi_eu`.
+Legge eu_calls_raw.json (prodotto da fetch_eu_calls.py, formato normalizzato)
+e carica/aggiorna le call EU nella tabella Supabase `incentivi_eu`.
 
 Richiede:
     pip install requests supabase
 
 Variabili d'ambiente:
-    SUPABASE_URL          URL del progetto Supabase (stessa del progetto principale)
-    SUPABASE_SERVICE_KEY  Service Role Key (stesso secret GitHub)
+    SUPABASE_URL          URL del progetto Supabase
+    SUPABASE_SERVICE_KEY  Service Role Key
     INPUT_FILE            (opzionale) default: eu_calls_raw.json
 """
 
 import json
 import os
 import sys
-import re
 import datetime
 
 from supabase import create_client, Client
 
-# ── CONFIGURAZIONE ──────────────────────────────────────────────────────────────────────────
+# ── CONFIGURAZIONE ───────────────────────────────────────────────────────────
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ncfpbqoforedqwzgsqql.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 INPUT_FILE = os.environ.get("INPUT_FILE", "eu_calls_raw.json")
 TABLE = "incentivi_eu"
 CHUNK_SIZE = 100
-# ────────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 def as_str(v) -> str:
@@ -46,13 +45,26 @@ def as_list(v) -> list:
 
 
 def as_dt(v) -> str | None:
-    s = as_str(v)
-    if not s:
+    """
+    Accetta stringhe YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS oppure timestamp ms.
+    Restituisce stringa ISO oppure None.
+    """
+    if not v:
         return None
-    # Formati comuni EU: 2024-12-31T00:00:00, 2024-12-31, 31 Dec 2024
+    # Timestamp in millisecondi (intero o stringa numerica)
+    try:
+        ms = int(v)
+        if ms > 1_000_000_000_000:  # ms
+            return datetime.datetime.utcfromtimestamp(ms / 1000).isoformat()
+        elif ms > 1_000_000_000:    # secondi
+            return datetime.datetime.utcfromtimestamp(ms).isoformat()
+    except (ValueError, TypeError):
+        pass
+    # Stringa data
+    s = str(v).strip()
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%d %b %Y", "%d/%m/%Y"):
         try:
-            return datetime.datetime.strptime(s[:len(fmt)+2].strip(), fmt).isoformat()
+            return datetime.datetime.strptime(s[:19], fmt).isoformat()
         except ValueError:
             continue
     return s  # restituisce la stringa originale se non parsabile
@@ -60,79 +72,133 @@ def as_dt(v) -> str | None:
 
 def normalize_row(raw: dict, extracted_at: str) -> dict | None:
     """
-    Mappa i campi dell'API EU Funding & Tenders verso la struttura
-    della tabella incentivi_eu.
+    Mappa i campi del JSON normalizzato prodotto da fetch_eu_calls.py
+    verso la struttura della tabella incentivi_eu.
+
+    fetch_eu_calls.py produce:
+        identifier, title, status, programme, type,
+        open_date, deadline, deadline_2,
+        publication_date, budget_topic, url, _raw
     """
-    # ID univoco: callIdentifier o identifier o id
+    # ID univoco
     identifier = (
-        as_str(raw.get("callIdentifier"))
-        or as_str(raw.get("identifier"))
+        as_str(raw.get("identifier"))
+        or as_str(raw.get("callIdentifier"))
         or as_str(raw.get("id"))
     ).strip()
 
     if not identifier:
         return None
 
-    titolo = as_str(raw.get("callTitle") or raw.get("title") or raw.get("name")).strip()
+    # Titolo
+    titolo = (
+        as_str(raw.get("title"))
+        or as_str(raw.get("callTitle"))
+        or as_str(raw.get("name"))
+    ).strip()
+
+    # Descrizione: nel formato normalizzato non c'è un campo desc dedicato,
+    # si prova a leggerlo dal _raw se presente
+    _raw = raw.get("_raw", {}) or {}
+    import re
     descrizione = re.sub(
         r"<[^>]+>", " ",
-        as_str(raw.get("description") or raw.get("objective") or raw.get("callDescription"))
+        as_str(
+            raw.get("description")
+            or _raw.get("description")
+            or _raw.get("objective")
+            or _raw.get("callDescription")
+            or ""
+        )
     ).strip()
     descrizione = re.sub(r"\s+", " ", descrizione)
 
-    programma = as_str(
-        raw.get("programmeName")
-        or raw.get("programme")
-        or raw.get("_programme_filter")
+    # Programma
+    programma = (
+        as_str(raw.get("programme"))
+        or as_str(raw.get("programmeName"))
+        or as_str(_raw.get("programmeAbbreviation"))
     ).strip()
 
-    deadline_raw = (
-        raw.get("deadlineDates")
+    # Date — formato normalizzato usa "open_date" e "deadline"
+    apertura = as_dt(
+        raw.get("open_date")
+        or raw.get("openingDate")
+        or raw.get("startDate")
+        or raw.get("publication_date")
+        or _raw.get("plannedOpeningDateLong")
+    )
+
+    # Deadline: prende la prima disponibile tra deadline e deadline_2
+    deadline = as_dt(
+        raw.get("deadline")
+        or raw.get("deadline_2")
         or raw.get("deadlineDate")
-        or raw.get("deadline")
         or raw.get("closingDate")
     )
-    if isinstance(deadline_raw, list) and deadline_raw:
-        deadline = as_dt(deadline_raw[-1])  # ultima deadline se multipla
-    else:
-        deadline = as_dt(deadline_raw)
+    if not deadline:
+        # Prova dal _raw (lista di timestamp ms)
+        dl_list = _raw.get("deadlineDatesLong", [])
+        if dl_list:
+            deadline = as_dt(dl_list[-1])
 
-    apertura = as_dt(
-        raw.get("openingDate")
-        or raw.get("startDate")
-        or raw.get("publicationDate")
+    # Budget
+    budget_raw = (
+        raw.get("budget_topic")
+        or raw.get("budgetOverviewTotal")
+        or raw.get("budget")
+        or _raw.get("budgetTopicActionBudget")
+        or _raw.get("budgetOverviewTotal")
     )
-
-    budget_raw = raw.get("budgetOverviewTotal") or raw.get("budget") or raw.get("budgetTotal")
     try:
-        budget = float(str(budget_raw).replace(",", ".")
-                       .replace(" ", "")) if budget_raw else None
+        budget = float(str(budget_raw).replace(",", ".").replace(" ", "")) if budget_raw else None
         if budget and (budget <= 0 or budget > 9.9e12):
             budget = None
     except (ValueError, TypeError):
         budget = None
 
-    link = as_str(
-        raw.get("callDetailsUrl")
-        or raw.get("url")
-        or raw.get("link")
+    # Link
+    link = (
+        as_str(raw.get("url"))
+        or as_str(raw.get("callDetailsUrl"))
+        or as_str(_raw.get("callDetailsUrl"))
     ).strip()
-    # Componi link standard se manca
     if not link and identifier:
-        link = f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/{identifier.lower()}"
+        link = (
+            f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/"
+            f"screen/opportunities/topic-details/{identifier.lower()}"
+        )
+
+    # Tipo
+    tipo = as_str(raw.get("type") or _raw.get("type", {}) or "")
+
+    # Status
+    status_raw = raw.get("status", "")
+    if isinstance(status_raw, dict):
+        status = as_str(status_raw.get("label") or status_raw.get("abbreviation") or "open").lower()
+    else:
+        status = as_str(status_raw).lower() or "open"
+
+    # Settori/keyword dal _raw
+    settori = as_list(
+        raw.get("tags")
+        or raw.get("keywords")
+        or _raw.get("tags")
+        or _raw.get("keywords")
+    )
 
     return {
         "id": identifier,
         "titolo": titolo,
-        "desc_": descrizione[:4000],  # limita per evitare payload enormi
+        "desc_": descrizione[:4000],
         "programma": programma,
         "apertura": apertura,
         "chiusura": deadline,
         "budget": budget,
         "link": link,
-        "settori": as_list(raw.get("tags") or raw.get("keywords") or raw.get("sectors")),
-        "tipologie": as_list(raw.get("actionType") or raw.get("type")),
-        "status": as_str(raw.get("status", "open")).lower(),
+        "settori": settori,
+        "tipologie": as_list(tipo) if tipo else [],
+        "status": status,
         "extracted_at": extracted_at,
         "source": "eu-funding-tenders",
     }
@@ -159,6 +225,14 @@ def upload(docs: list[dict], sb: Client):
         print(f"  [{int(total / len(rows) * 100):3d}%] {total}/{len(rows)}", end="\r")
 
     print(f"\n  ✓ Upload completato: {total} call EU su Supabase")
+
+    # Riepilogo campi valorizzati
+    with_deadline = sum(1 for r in rows if r.get("chiusura"))
+    with_budget = sum(1 for r in rows if r.get("budget"))
+    with_apertura = sum(1 for r in rows if r.get("apertura"))
+    print(f"  📅 Con deadline: {with_deadline}/{len(rows)}")
+    print(f"  💰 Con budget:   {with_budget}/{len(rows)}")
+    print(f"  📆 Con apertura: {with_apertura}/{len(rows)}")
 
 
 def main() -> int:
