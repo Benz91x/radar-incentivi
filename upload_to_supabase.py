@@ -55,6 +55,8 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Accept": "application/json",
     "Accept-Language": "it-IT,it;q=0.9",
+    "Accept-Encoding": "identity",   # FIX: disabilita compressione — evita problemi di decompressione
+                                     # su GitHub Actions runner per risposte JSON grandi.
     "Referer": "https://www.incentivi.gov.it/",
 }
 # ────────────────────────────────────────────────────
@@ -62,7 +64,12 @@ HEADERS = {
 
 def build_session() -> requests.Session:
     session = requests.Session()
-    retry = Retry(total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504], allowed_methods=["GET"])
+    retry = Retry(
+        total=2,              # era 3: 3 tentativi × 120s timeout ≈ 6-8 min di blocco
+        backoff_factor=1,     # era 2
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
     session.mount("https://", HTTPAdapter(max_retries=retry))
     return session
 
@@ -157,13 +164,28 @@ def load_docs() -> list[dict]:
             sys.exit(1)
     else:
         print("Scarico dati da incentivi.gov.it…")
+        print(f"  Endpoint: {ENDPOINT}")
         time.sleep(2)
         session = build_session()
-        r = session.get(ENDPOINT, params=PARAMS, timeout=120, headers=HEADERS)
-        print(f"  HTTP {r.status_code}")
-        r.raise_for_status()
-        data = r.json()
-        docs = data["response"]["docs"]
+        try:
+            r = session.get(
+                ENDPOINT,
+                params=PARAMS,
+                timeout=(30, 180),   # (connect, read) — era timeout=120
+                headers=HEADERS,
+            )
+            print(f"  HTTP {r.status_code} — Content-Length: {r.headers.get('Content-Length', 'N/A')} bytes")
+            r.raise_for_status()
+            data = r.json()
+            docs = data["response"]["docs"]
+        except requests.exceptions.Timeout:
+            print("ERRORE: timeout durante il download da incentivi.gov.it.", file=sys.stderr)
+            print("  Il server potrebbe bloccare gli IP dei runner GitHub Actions.", file=sys.stderr)
+            print("  Considera di impostare INPUT_FILE=incentivi_raw.json nel workflow.", file=sys.stderr)
+            raise
+        except requests.exceptions.RequestException as e:
+            print(f"ERRORE di rete: {e}", file=sys.stderr)
+            raise
 
     print(f"  Documenti ricevuti: {len(docs)}")
     return docs

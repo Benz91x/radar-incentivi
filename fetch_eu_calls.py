@@ -37,6 +37,9 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Accept": "application/json, */*",
     "Accept-Language": "en",
+    "Accept-Encoding": "identity",   # FIX: disabilita gzip/brotli — Deno e certi runner non riescono
+                                     # a decomprimere file JSON grandi (>50 MB) in streaming.
+                                     # Stesso fix già applicato all'edge function Supabase v7.
 }
 
 # Programmi da includere (None = tutti)
@@ -52,8 +55,8 @@ PROG_PREFIX_RE = re.compile(r"^[A-Z0-9]{2,12}$")
 def build_session() -> requests.Session:
     session = requests.Session()
     retry = Retry(
-        total=5,
-        backoff_factor=2,
+        total=3,            # era 5: con backoff_factor=2 → 5 tentativi × ~55s timeout = ~4.5 min di fallimenti
+        backoff_factor=1,   # era 2
         status_forcelist=[429, 500, 502, 503, 504],
     )
     session.mount("https://", HTTPAdapter(max_retries=retry))
@@ -63,7 +66,8 @@ def build_session() -> requests.Session:
 def download_grants_json(session: requests.Session) -> dict:
     """Scarica il JSON statico grantsTenders.json con progress a blocchi."""
     print(f"Scarico {GRANTS_JSON_URL} ...")
-    r = session.get(GRANTS_JSON_URL, headers=HEADERS, stream=True, timeout=120)
+    r = session.get(GRANTS_JSON_URL, headers=HEADERS, stream=True,
+                    timeout=(30, 300))   # (connect_timeout, read_timeout) — era timeout=120
     r.raise_for_status()
 
     total_size = int(r.headers.get("content-length", 0))
