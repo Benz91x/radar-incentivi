@@ -1,28 +1,30 @@
 name: Refresh Incentivi → Supabase
 
+# Il download da incentivi.gov.it blocca gli IP dei runner GitHub Actions.
+# La funzione Supabase "refresh-incentivi" esegue il download dai suoi server
+# (IP non bloccati) e aggiorna direttamente la tabella "incentivi".
+
 on:
   schedule:
     - cron: '0 3 * * *'   # ogni notte alle 03:00 UTC
   workflow_dispatch:
 
 jobs:
-  upload:
+  refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20   # safety net
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Installa dipendenze
-        run: pip install requests supabase
-
-      - name: Scarica dati freschi da incentivi.gov.it e carica su Supabase
+      - name: Refresh incentivi MIMIT via Supabase edge function
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          # INPUT_FILE vuoto = forza il download dall'API invece di riusare
-          # lo snapshot statico incentivi_raw.json committato nel repo
-          INPUT_FILE: ''
-        run: python upload_to_supabase.py
+        run: |
+          echo "Avvio refresh incentivi MIMIT..."
+          response=$(curl -sf -X POST \
+            "https://ncfpbqoforedqwzgsqql.supabase.co/functions/v1/refresh-incentivi" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            --max-time 120)
+          echo "Risposta: $response"
+          echo "$response" | grep -q '"ok":true' \
+            && echo "✓ Refresh completato con successo" \
+            || echo "⚠ Controllare i logs su Supabase Dashboard → Edge Functions"

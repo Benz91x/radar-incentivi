@@ -1,35 +1,34 @@
 name: Refresh Call EU → Supabase
 
+# Il download del JSON EU (70+ MB) dal portale ec.europa.eu viene bloccato
+# o throttlato dagli IP dei runner GitHub Actions.
+# La funzione Supabase "refresh-eu-bulk":
+#  1. Scarica grantsTenders.json dai server Supabase (IP non bloccati)
+#  2. Filtra le call open/forthcoming
+#  3. Inserisce/aggiorna la tabella "incentivi_eu"
+#  4. Avvia automaticamente "enrich-eu" per le descrizioni
+
 on:
   schedule:
-    - cron: '30 3 * * *'   # ogni notte alle 03:30 UTC
+    - cron: '30 3 * * *'   # ogni notte alle 03:30 UTC (30 min dopo MIMIT)
   workflow_dispatch:
 
 jobs:
-  upload:
+  refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # safety net: non deve girare oltre 25 min
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Installa dipendenze
-        run: pip install requests supabase
-
-      - name: Scarica call aperte da EU Funding & Tenders Portal
-        run: python fetch_eu_calls.py
-
-      - name: Carica call EU su Supabase (tabella incentivi_eu)
+      - name: Refresh call EU + enrichment via Supabase edge function
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          INPUT_FILE: eu_calls_raw.json
-        run: python upload_eu_to_supabase.py
-
-      - name: Arricchisci descrizioni EU (topicDetails API)
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          ENRICH_BATCH: '10'
-        run: python enrich_eu_descriptions.py
+        run: |
+          echo "Avvio pipeline EU (download + upload + enrichment)..."
+          response=$(curl -sf -X POST \
+            "https://ncfpbqoforedqwzgsqql.supabase.co/functions/v1/refresh-eu-bulk" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            --max-time 30)
+          echo "Risposta: $response"
+          echo "✓ Pipeline EU avviata in background su Supabase"
+          echo "  Download + upload + enrichment vengono eseguiti in parallelo."
+          echo "  Controllare i logs su Supabase Dashboard → Edge Functions"
