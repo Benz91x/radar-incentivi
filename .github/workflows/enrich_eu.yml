@@ -1,0 +1,44 @@
+name: Arricchisci descrizioni Call EU
+
+# Workflow standalone: recupera le descrizioni dettagliate di tutte le call EU
+# dal portale EU Funding & Tenders (topicDetails API) e le salva su Supabase.
+#
+# Come usarlo:
+#   GitHub → Actions → "Arricchisci descrizioni Call EU" → Run workflow
+#
+# Variabili configurabili:
+#   force: "true"  → riscrive anche le descrizioni già presenti
+#   limit: "0"     → 0 = tutte le call senza descrizione
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Riscrivi descrizioni già presenti? (true/false)'
+        required: false
+        default: 'false'
+      limit:
+        description: 'Max call da processare (0 = tutte)'
+        required: false
+        default: '0'
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installa dipendenze
+        run: pip install requests supabase
+
+      - name: Arricchisci descrizioni EU
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ENRICH_BATCH: '10'
+          FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
+          ENRICH_LIMIT: ${{ github.event.inputs.limit || '0' }}
+        run: python enrich_eu_descriptions.py

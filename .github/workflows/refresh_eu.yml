@@ -26,3 +26,9 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           INPUT_FILE: eu_calls_raw.json
         run: python upload_eu_to_supabase.py
+
+      - name: Arricchisci descrizioni EU (topicDetails API)
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ENRICH_BATCH: '10'
+        run: python enrich_eu_descriptions.py
