@@ -8,6 +8,7 @@ on:
 jobs:
   upload:
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # safety net
     steps:
       - uses: actions/checkout@v4
 
