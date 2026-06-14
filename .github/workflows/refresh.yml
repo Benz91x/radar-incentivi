@@ -1,9 +1,5 @@
 name: Refresh Incentivi → Supabase
 
-# Il download da incentivi.gov.it blocca gli IP dei runner GitHub Actions.
-# La funzione Supabase "refresh-incentivi" esegue il download dai suoi server
-# (IP non bloccati) e aggiorna direttamente la tabella "incentivi".
-
 on:
   schedule:
     - cron: '0 3 * * *'   # ogni notte alle 03:00 UTC
@@ -15,16 +11,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Refresh incentivi MIMIT via Supabase edge function
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "Avvio refresh incentivi MIMIT..."
-          response=$(curl -sf -X POST \
+          echo "Chiamata edge function refresh-incentivi..."
+          response=$(curl -s -X POST \
             "https://ncfpbqoforedqwzgsqql.supabase.co/functions/v1/refresh-incentivi" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/json" \
-            --max-time 120)
-          echo "Risposta: $response"
-          echo "$response" | grep -q '"ok":true' \
-            && echo "✓ Refresh completato con successo" \
-            || echo "⚠ Controllare i logs su Supabase Dashboard → Edge Functions"
+            --max-time 120 \
+            -w "\n__HTTP_STATUS__:%{http_code}")
+          http_status=$(echo "$response" | grep "__HTTP_STATUS__" | cut -d: -f2)
+          body=$(echo "$response" | grep -v "__HTTP_STATUS__")
+          echo "HTTP status: $http_status"
+          echo "Risposta: $body"
+          if [ "$http_status" != "200" ]; then
+            echo "ERRORE: HTTP $http_status"
+            exit 1
+          fi
+          echo "$body" | grep -q '"ok":true' \
+            && echo "✓ Refresh completato" \
+            || echo "⚠ Controlla Supabase → Edge Functions → Logs"

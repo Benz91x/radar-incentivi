@@ -1,16 +1,8 @@
 name: Refresh Call EU → Supabase
 
-# Il download del JSON EU (70+ MB) dal portale ec.europa.eu viene bloccato
-# o throttlato dagli IP dei runner GitHub Actions.
-# La funzione Supabase "refresh-eu-bulk":
-#  1. Scarica grantsTenders.json dai server Supabase (IP non bloccati)
-#  2. Filtra le call open/forthcoming
-#  3. Inserisce/aggiorna la tabella "incentivi_eu"
-#  4. Avvia automaticamente "enrich-eu" per le descrizioni
-
 on:
   schedule:
-    - cron: '30 3 * * *'   # ogni notte alle 03:30 UTC (30 min dopo MIMIT)
+    - cron: '30 3 * * *'   # ogni notte alle 03:30 UTC
   workflow_dispatch:
 
 jobs:
@@ -19,16 +11,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Refresh call EU + enrichment via Supabase edge function
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "Avvio pipeline EU (download + upload + enrichment)..."
-          response=$(curl -sf -X POST \
+          echo "Chiamata edge function refresh-eu-bulk..."
+          response=$(curl -s -X POST \
             "https://ncfpbqoforedqwzgsqql.supabase.co/functions/v1/refresh-eu-bulk" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/json" \
-            --max-time 30)
-          echo "Risposta: $response"
-          echo "✓ Pipeline EU avviata in background su Supabase"
-          echo "  Download + upload + enrichment vengono eseguiti in parallelo."
-          echo "  Controllare i logs su Supabase Dashboard → Edge Functions"
+            --max-time 30 \
+            -w "\n__HTTP_STATUS__:%{http_code}")
+          http_status=$(echo "$response" | grep "__HTTP_STATUS__" | cut -d: -f2)
+          body=$(echo "$response" | grep -v "__HTTP_STATUS__")
+          echo "HTTP status: $http_status"
+          echo "Risposta: $body"
+          if [ "$http_status" != "200" ]; then
+            echo "ERRORE: HTTP $http_status"
+            exit 1
+          fi
+          echo "✓ Pipeline EU avviata in background (download + upload + enrichment)"
