@@ -1,8 +1,6 @@
 name: Refresh Incentivi → Supabase
 
 on:
-  schedule:
-    - cron: '0 3 * * *'   # ogni notte alle 03:00 UTC
   workflow_dispatch:
 
 jobs:
